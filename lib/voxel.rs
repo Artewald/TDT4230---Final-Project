@@ -78,7 +78,7 @@ impl Voxel {
         let mut actual_children: Vec<Voxel> = vec![];
         for child in self.children.clone() {
             if !child.is_none() {
-                actual_children.push(*child.unwrap())
+                actual_children.push(*child.unwrap());
             }
         }
 
