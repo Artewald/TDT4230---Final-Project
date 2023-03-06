@@ -13,7 +13,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
             struct VoxelData
             {
                 vec2 pos_xy;
-                // The range value is the pos_zw.y value this is done to save space
+                // The range value (size of the voxel) is the pos_zw.y value this is done to save space
                 vec2 pos_zw;
                 vec2 color_rg;
                 vec2 color_ba;
@@ -42,20 +42,16 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
             
             layout(set = 1, binding = 0, rgba8) uniform image2D img_out; 
             
-            struct ColorHit {
+            struct Hit {
                 bool hit;
                 vec4 color;
+                vec3 hit_point;
+                vec3 hit_normal;
             };
             
             struct Ray {
                 vec3 origin;
                 vec3 direction;
-            };
-            
-            struct RayHit {
-                bool hit;
-                vec3 normal;
-                vec2 result;
             };
             
             // Const variables
@@ -74,17 +70,39 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
             
             
             // From https://jcgt.org/published/0007/03/04/
-            bool slabs(VoxelData voxel, Ray ray, vec3 invRaydir) {
+            bool slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection, out vec3 intersectionPoint, out vec3 normal) {
                 const vec3 p0 = vec3(voxel.pos_xy, voxel.pos_zw.x);
                 const vec3 p1 = vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
             
-                const vec3 t0 = (p0 - ray.origin) * invRaydir;
-                const vec3 t1 = (p1 - ray.origin) * invRaydir;
+                const vec3 t0 = (p0 - ray.origin) * invertedRayDirection;
+                const vec3 t1 = (p1 - ray.origin) * invertedRayDirection;
                 const vec3 tmin = min(t0,t1), tmax = max(t0,t1);
                 const float tmax_val = min_component(tmax);
                 const float tmin_val = max_component(tmin);
                 // TODO: Make the tmax_val also work with vectors in the negative space
-                return tmin_val <= tmax_val && tmax_val >= 0.0;
+                
+                bool intersects = tmin_val <= tmax_val && tmax_val >= 0.0;
+                
+                if (intersects) {
+                    // Calculate intersection point
+                    intersectionPoint = ray.origin + tmax_val * ray.direction;
+            
+                    // calculate normal vector
+                    vec3 center = (p0 + p1) / 2.0;
+                    vec3 d = intersectionPoint - center;
+                    normal = vec3(0.0);
+                    if (abs(d.x) > voxel.pos_zw.y / 2.0) {
+                        normal.x = sign(d.x);
+                    }
+                    if (abs(d.y) > voxel.pos_zw.y / 2.0) {
+                        normal.y = sign(d.y);
+                    }
+                    if (abs(d.z) > voxel.pos_zw.y / 2.0) {
+                        normal.z = sign(d.z);
+                    }
+                }
+                
+                return intersects;
             }
             
             uint[8] get_children_indices(VoxelData voxel) {
@@ -98,8 +116,8 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                        voxel._1_2_index == uint(-1) && voxel._1_3_index == uint(-1);
             }
             
-            ColorHit fill_hit_color(VoxelData voxel) {
-                ColorHit data;
+            Hit fill_hit_color(VoxelData voxel) {
+                Hit data;
                 data.color = vec4(voxel.color_rg, voxel.color_ba);
                 data.hit = true;
                 return data;
@@ -114,8 +132,8 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                 return get_distance(ray, voxel) < closest;
             }
             
-            ColorHit voxel_hit(Ray ray, vec4 clear_col) {
-                ColorHit ret_val;
+            Hit voxel_hit(Ray ray, vec4 clear_col) {
+                Hit ret_val;
                 ret_val.color = clear_col;
                 ret_val.hit = false;
                 float closest = 999999999999999999.0;
@@ -125,13 +143,15 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                 // GLSL does not allow for recursive functions, thus it needs to be hard-coded
                 VoxelData temp_voxel = voxel_data.data[voxel_data.data.length()-1];
                 const uint[8] level_0 = get_children_indices(temp_voxel);
-                if (!slabs(temp_voxel, ray, invRaydir)) return ret_val;
+                
+                if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal)) return ret_val;
+            
                 if (is_leaf_node(temp_voxel)) return fill_hit_color(temp_voxel);
                 for (int i_0 = 0; i_0 < level_0.length(); i_0++) {
                     if (level_0[i_0] == UINT_MAX) continue;
                     temp_voxel = voxel_data.data[level_0[i_0]];
                     const uint[8] level_1 = get_children_indices(temp_voxel);
-                    if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                    if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                     if (is_leaf_node(temp_voxel)) {
                         ret_val = fill_hit_color(temp_voxel);
                         closest = get_distance(ray, temp_voxel);
@@ -141,7 +161,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                         if (level_1[i_1]== UINT_MAX) continue;
                         temp_voxel = voxel_data.data[level_1[i_1]];
                         const uint[8] level_2 = get_children_indices(temp_voxel);
-                        if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                        if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                         if (is_leaf_node(temp_voxel)) {
                             ret_val = fill_hit_color(temp_voxel);
                             closest = get_distance(ray, temp_voxel);
@@ -151,7 +171,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                             if (level_2[i_2]== UINT_MAX) continue;
                             temp_voxel = voxel_data.data[level_2[i_2]];
                             const uint[8] level_3 = get_children_indices(temp_voxel);
-                            if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                            if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                             if (is_leaf_node(temp_voxel)) {
                                 ret_val = fill_hit_color(temp_voxel);
                                 closest = get_distance(ray, temp_voxel);
@@ -161,7 +181,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                 if (level_3[i_3]== UINT_MAX) continue;
                                 temp_voxel = voxel_data.data[level_3[i_3]];
                                 const uint[8] level_4 = get_children_indices(temp_voxel);
-                                if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                 if (is_leaf_node(temp_voxel)) {
                                     ret_val = fill_hit_color(temp_voxel);
                                     closest = get_distance(ray, temp_voxel);
@@ -171,7 +191,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                     if (level_4[i_4]== UINT_MAX) continue;
                                     temp_voxel = voxel_data.data[level_4[i_4]];
                                     const uint[8] level_5 = get_children_indices(temp_voxel);
-                                    if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                    if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                     if (is_leaf_node(temp_voxel)) {
                                         ret_val = fill_hit_color(temp_voxel);
                                         closest = get_distance(ray, temp_voxel);
@@ -181,7 +201,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                         if (level_5[i_5]== UINT_MAX) continue;
                                         temp_voxel = voxel_data.data[level_5[i_5]];
                                         const uint[8] level_6 = get_children_indices(temp_voxel);
-                                        if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                        if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                         if (is_leaf_node(temp_voxel)) {
                                             ret_val = fill_hit_color(temp_voxel);
                                             closest = get_distance(ray, temp_voxel);
@@ -191,7 +211,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                             if (level_6[i_6]== UINT_MAX) continue;
                                             temp_voxel = voxel_data.data[level_6[i_6]];
                                             const uint[8] level_7 = get_children_indices(temp_voxel);
-                                            if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                            if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                             if (is_leaf_node(temp_voxel)) {
                                                 ret_val = fill_hit_color(temp_voxel);
                                                 closest = get_distance(ray, temp_voxel);
@@ -201,7 +221,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                 if (level_7[i_7]== UINT_MAX) continue;
                                                 temp_voxel = voxel_data.data[level_7[i_7]];
                                                 const uint[8] level_8 = get_children_indices(temp_voxel);
-                                                if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                 if (is_leaf_node(temp_voxel)) {
                                                     ret_val = fill_hit_color(temp_voxel);
                                                     closest = get_distance(ray, temp_voxel);
@@ -211,7 +231,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                     if (level_8[i_8]== UINT_MAX) continue;
                                                     temp_voxel = voxel_data.data[level_8[i_8]];
                                                     const uint[8] level_9 = get_children_indices(temp_voxel);
-                                                    if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                    if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                     if (is_leaf_node(temp_voxel)) {
                                                         ret_val = fill_hit_color(temp_voxel);
                                                         closest = get_distance(ray, temp_voxel);
@@ -221,7 +241,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                         if (level_9[i_9] == UINT_MAX) continue;
                                                         temp_voxel = voxel_data.data[level_9[i_9]];
                                                         const uint[8] level_10 = get_children_indices(temp_voxel);
-                                                        if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                        if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                         if (is_leaf_node(temp_voxel)) {
                                                             ret_val = fill_hit_color(temp_voxel);
                                                             closest = get_distance(ray, temp_voxel);
@@ -231,7 +251,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                             if (level_10[i_10] == UINT_MAX) continue;
                                                             temp_voxel = voxel_data.data[level_10[i_10]];
                                                             const uint[8] level_11 = get_children_indices(temp_voxel);
-                                                            if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                            if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                             if (is_leaf_node(temp_voxel)) {
                                                                 ret_val = fill_hit_color(temp_voxel);
                                                                 closest = get_distance(ray, temp_voxel);
@@ -241,7 +261,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                                 if (level_11[i_11] == UINT_MAX) continue;
                                                                 temp_voxel = voxel_data.data[level_11[i_11]];
                                                                 const uint[8] level_12 = get_children_indices(temp_voxel);
-                                                                if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                                if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                                 if (is_leaf_node(temp_voxel)) {
                                                                     ret_val = fill_hit_color(temp_voxel);
                                                                     closest = get_distance(ray, temp_voxel);
@@ -251,7 +271,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                                     if (level_12[i_12] == UINT_MAX) continue;
                                                                     temp_voxel = voxel_data.data[level_12[i_12]];
                                                                     const uint[8] level_13 = get_children_indices(temp_voxel);
-                                                                    if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                                    if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                                     if (is_leaf_node(temp_voxel)) {
                                                                         ret_val = fill_hit_color(temp_voxel);
                                                                         closest = get_distance(ray, temp_voxel);
@@ -261,7 +281,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                                         if (level_13[i_13] == UINT_MAX) continue;
                                                                         temp_voxel = voxel_data.data[level_13[i_13]];
                                                                         const uint[8] level_14 = get_children_indices(temp_voxel);
-                                                                        if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                                        if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                                         if (is_leaf_node(temp_voxel)) {
                                                                             ret_val = fill_hit_color(temp_voxel);
                                                                             closest = get_distance(ray, temp_voxel);
@@ -271,7 +291,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                                             if (level_14[i_14] == UINT_MAX) continue;
                                                                             temp_voxel = voxel_data.data[level_14[i_14]];
                                                                             const uint[8] level_15 = get_children_indices(temp_voxel);
-                                                                            if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                                            if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                                             if (is_leaf_node(temp_voxel)) {
                                                                                 ret_val = fill_hit_color(temp_voxel);
                                                                                 closest = get_distance(ray, temp_voxel);
@@ -281,7 +301,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                                                 if (level_15[i_15] == UINT_MAX) continue;
                                                                                 temp_voxel = voxel_data.data[level_15[i_15]];
                                                                                 const uint[8] level_16 = get_children_indices(temp_voxel);
-                                                                                if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                                                if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                                                 if (is_leaf_node(temp_voxel)) {
                                                                                     ret_val = fill_hit_color(temp_voxel);
                                                                                     closest = get_distance(ray, temp_voxel);
@@ -290,7 +310,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
                                                                                 for (int i_16 = 0; i_16 < level_16.length(); i_16++) {
                                                                                     if (level_16[i_16] == UINT_MAX) continue;
                                                                                     temp_voxel = voxel_data.data[level_16[i_16]];
-                                                                                    if (!slabs(temp_voxel, ray, invRaydir) || !is_closer(ray, temp_voxel, closest)) continue;
+                                                                                    if (!slabs(temp_voxel, ray, invRaydir, ret_val.hit_point, ret_val.hit_normal) || !is_closer(ray, temp_voxel, closest)) continue;
                                                                                     if (is_leaf_node(temp_voxel)) {
                                                                                         ret_val = fill_hit_color(temp_voxel);
                                                                                         closest = get_distance(ray, temp_voxel);
@@ -333,7 +353,7 @@ pub fn render_shader(device: Arc<Device>) -> Arc<ShaderModule> {
             
                 const Ray ray = Ray(vec3(camera.camera_to_world[3].x, camera.camera_to_world[3].y, camera.camera_to_world[3].z), normalize(current_search_pos));
                 
-                ColorHit check = voxel_hit(ray, camera.clear_color);
+                Hit check = voxel_hit(ray, camera.clear_color);
                 if (check.hit) color_in_the_end = check.color;
             
                 imageStore(img_out, IDxy, vec4(color_in_the_end.b, color_in_the_end.g, color_in_the_end.r, color_in_the_end.a));
