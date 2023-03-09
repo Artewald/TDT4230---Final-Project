@@ -328,24 +328,33 @@ Hit voxel_hit(Ray ray, vec4 clear_col) {
     return ret_val;
 }
 
-
-// Main         
-void main() {
+Ray get_primary_ray(float x_offset, float y_offset) {
     ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
-    
     const ivec2 screenSize = imageSize(img_out);
-    const vec2 pixel_NCD = vec2((float(IDxy.x)+0.5)/float(screenSize.x), (float(IDxy.y)+0.5)/float(screenSize.y));
+
+    const vec2 pixel_NCD = vec2((float(IDxy.x)+x_offset)/float(screenSize.x), (float(IDxy.y)+y_offset)/float(screenSize.y));
     const vec2 camera_pixel = vec2((2 * pixel_NCD.x - 1) * camera.aspectRatio * camera.fov_tan, (1 - 2 * pixel_NCD.y) * camera.fov_tan);
 
     const highp vec4 world_search_pos = vec4(vec3(camera_pixel.x, camera_pixel.y, -1.0), 0.0)*camera.camera_to_world;
     highp vec3 current_search_pos = normalize(world_search_pos.xyz);
     current_search_pos.x = -current_search_pos.x;
-    vec4 color_in_the_end = camera.clear_color;
 
-    const Ray ray = Ray(vec3(camera.camera_to_world[3].x, camera.camera_to_world[3].y, camera.camera_to_world[3].z), normalize(current_search_pos));
-    
-    Hit check = voxel_hit(ray, camera.clear_color);
-    if (check.hit) color_in_the_end = check.color;
+    return Ray(camera.camera_to_world[3].xyz, normalize(current_search_pos));
+}
+
+// Main         
+void main() {
+    ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
+    vec4 color_in_the_end = vec4(0.0);//camera.clear_color;
+
+    float offsets[3] = float[](0.25, 0.5, 0.75);
+
+    for (int x = 0; x < offsets.length(); x++) {
+        for (int y = 0; y < offsets.length(); y++) {
+            const Ray ray = get_primary_ray(offsets[x], offsets[y]);
+            color_in_the_end += voxel_hit(ray, camera.clear_color).color * (1.0 / (offsets.length()*offsets.length()));
+        }
+    }
 
     imageStore(img_out, IDxy, vec4(color_in_the_end.b, color_in_the_end.g, color_in_the_end.r, color_in_the_end.a));
 }
