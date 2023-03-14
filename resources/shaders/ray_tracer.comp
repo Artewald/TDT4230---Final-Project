@@ -45,11 +45,13 @@ struct Ray {
     vec3 direction;
 };
 
-// Const variables
+// ==================== Const variables ====================
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
+const uint AMOUNT_OF_PRIMARY_RAYS = 9;
+const uint AMOUNT_OF_RAY_BOUNCES = 3;
 
-// Helper functions
+// ==================== Helper functions ====================
 
 float max_component(vec3 vec) {
     return max(max(vec.x, vec.y), vec.z);
@@ -59,42 +61,84 @@ float min_component(vec3 vec) {
     return min(min(vec.x, vec.y), vec.z);
 }
 
+float get_random_number(int seed) {
+    return fract(sin(float(seed)) * 43758.5453123);
+}
+
+float[AMOUNT_OF_PRIMARY_RAYS] get_random_noise(int seed) {
+    float[AMOUNT_OF_PRIMARY_RAYS] noise;
+    for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
+        noise[i] = get_random_number(seed*10 + i);
+    }
+    return noise;
+}
+
+// ==================== Ray functions ====================
+
+
+bool slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection, out vec3 intersectionPoint, out vec3 normal) {
+    const vec3 boxMin = vec3(voxel.pos_xy, voxel.pos_zw.x);
+    const vec3 boxMax = vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
+
+    vec3 tMin = (boxMin - ray.origin) * invertedRayDirection;
+    vec3 tMax = (boxMax - ray.origin) * invertedRayDirection;
+    vec3 t1 = min(tMin, tMax);
+    vec3 t2 = max(tMin, tMax);
+    float tNear = max(max(t1.x, t1.y), t1.z);
+    float tFar = min(min(t2.x, t2.y), t2.z);
+
+    if (tNear > tFar || tFar < 0.0) {
+        // No intersection
+        return false;
+    }
+
+    // Calculate intersection point and surface normal
+    intersectionPoint = ray.origin + ray.direction * tNear;
+
+    vec3 boxCenter = (boxMin + boxMax) * 0.5;
+    vec3 boxHalfExtents = (boxMax - boxMin) * 0.5;
+    vec3 localIntersection = intersectionPoint - boxCenter;
+    vec3 absLocalIntersection = abs(localIntersection);
+    float maxAbs = max(max(absLocalIntersection.x, absLocalIntersection.y), absLocalIntersection.z);
+    if (maxAbs == absLocalIntersection.x) {
+        normal = vec3(sign(localIntersection.x), 0.0, 0.0);
+    } else if (maxAbs == absLocalIntersection.y) {
+        normal = vec3(0.0, sign(localIntersection.y), 0.0);
+    } else {
+        normal = vec3(0.0, 0.0, sign(localIntersection.z));
+    }
+
+    return true;
+}
 
 // From https://jcgt.org/published/0007/03/04/
-bool slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection, out vec3 intersectionPoint, out vec3 normal) {
-    const vec3 p0 = vec3(voxel.pos_xy, voxel.pos_zw.x);
-    const vec3 p1 = vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
+// bool slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection, out vec3 intersectionPoint, out vec3 normal) {
+//     const vec3 p0 = vec3(voxel.pos_xy, voxel.pos_zw.x);
+//     const vec3 p1 = vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
 
-    const vec3 t0 = (p0 - ray.origin) * invertedRayDirection;
-    const vec3 t1 = (p1 - ray.origin) * invertedRayDirection;
-    const vec3 tmin = min(t0,t1), tmax = max(t0,t1);
-    const float tmax_val = min_component(tmax);
-    const float tmin_val = max_component(tmin);
-    // TODO: Make the tmax_val also work with vectors in the negative space
+//     const vec3 t0 = (p0 - ray.origin) * invertedRayDirection;
+//     const vec3 t1 = (p1 - ray.origin) * invertedRayDirection;
+//     const vec3 tmin = min(t0,t1), tmax = max(t0,t1);
+//     const float tmax_val = min_component(tmax);
+//     const float tmin_val = max_component(tmin);
+//     // TODO: Make the tmax_val also work with vectors in the negative space
     
-    bool intersects = tmin_val <= tmax_val && tmax_val >= 0.0;
-    
-    if (intersects) {
-        // Calculate intersection point
-        intersectionPoint = ray.origin + tmax_val * ray.direction;
+//     bool intersects = tmin_val <= tmax_val && tmax_val >= 0.0;
 
-        // calculate normal vector
-        vec3 center = (p0 + p1) / 2.0;
-        vec3 d = intersectionPoint - center;
-        normal = vec3(0.0);
-        if (abs(d.x) > voxel.pos_zw.y / 2.0) {
-            normal.x = sign(d.x);
-        }
-        if (abs(d.y) > voxel.pos_zw.y / 2.0) {
-            normal.y = sign(d.y);
-        }
-        if (abs(d.z) > voxel.pos_zw.y / 2.0) {
-            normal.z = sign(d.z);
-        }
-    }
+//     if (intersects) {
+//         intersectionPoint = ray.origin + ray.direction * tmin_val;
+        
+//         if (tmin.x > tmin.y && tmin.x > tmin.z) {
+//             normal.x = t0.x < t1.x ? 1.0 : -1.0;
+//         } else if (tmin.y > tmin.z) {
+//             normal.y = t0.y < t1.y ? 1.0 : -1.0;
+//         } else {
+//             normal.z = t0.z < t1.z ? 1.0 : -1.0;
+//         }
+//     }
     
-    return intersects;
-}
+//     return intersects;
+// }
 
 uint[8] get_children_indices(VoxelData voxel) {
     return uint[8](voxel._0_0_index, voxel._0_1_index, voxel._0_2_index, voxel._0_3_index, voxel._1_0_index, voxel._1_1_index, voxel._1_2_index, voxel._1_3_index);
@@ -116,7 +160,11 @@ Hit fill_hit_color(VoxelData voxel) {
 
 float get_distance(Ray ray, VoxelData voxel) {
     // TODO: there is something wrong here
-    return length(vec3((voxel.pos_xy.x+voxel.pos_zw.y)/2.0, (voxel.pos_xy.y+voxel.pos_zw.y)/2.0, (voxel.pos_zw.x+voxel.pos_zw.y)/2.0) - ray.origin);
+    //return length(vec3((voxel.pos_xy.x+voxel.pos_zw.y)/2.0, (voxel.pos_xy.y+voxel.pos_zw.y)/2.0, (voxel.pos_zw.x+voxel.pos_zw.y)/2.0) - ray.origin);
+    vec3 center = vec3((voxel.pos_xy.x + voxel.pos_zw.y) / 2.0,
+                   (voxel.pos_xy.y + voxel.pos_zw.y) / 2.0,
+                   (voxel.pos_zw.x + voxel.pos_zw.y) / 2.0);
+    return length(center - ray.origin);
 }
 
 bool is_closer(in Ray ray, in VoxelData voxel, in float closest) {
@@ -332,7 +380,7 @@ Ray get_primary_ray(float x_offset, float y_offset) {
     ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
     const ivec2 screenSize = imageSize(img_out);
 
-    const vec2 pixel_NCD = vec2((float(IDxy.x)+x_offset)/float(screenSize.x), (float(IDxy.y)+y_offset)/float(screenSize.y));
+    const vec2 pixel_NCD = vec2((float(IDxy.x)+x_offset+0.5)/float(screenSize.x), (float(IDxy.y)+y_offset+0.5)/float(screenSize.y));
     const vec2 camera_pixel = vec2((2 * pixel_NCD.x - 1) * camera.aspectRatio * camera.fov_tan, (1 - 2 * pixel_NCD.y) * camera.fov_tan);
 
     const highp vec4 world_search_pos = vec4(vec3(camera_pixel.x, camera_pixel.y, -1.0), 0.0)*camera.camera_to_world;
@@ -347,13 +395,23 @@ void main() {
     ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
     vec4 color_in_the_end = vec4(0.0);//camera.clear_color;
 
-    float offsets[3] = float[](0.25, 0.5, 0.75);
+    float x_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise(IDxy.x);
+    float y_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise(IDxy.y);
 
-    for (int x = 0; x < offsets.length(); x++) {
-        for (int y = 0; y < offsets.length(); y++) {
-            const Ray ray = get_primary_ray(offsets[x], offsets[y]);
-            color_in_the_end += voxel_hit(ray, camera.clear_color).color * (1.0 / (offsets.length()*offsets.length()));
-        }
+    for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
+        Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
+        Hit hit = voxel_hit(ray, camera.clear_color);
+        vec4 color = hit.color;
+        // for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
+        //     if (hit.hit) {
+        //         // ray = Ray(hit.hit_point + hit.hit_normal, reflect(ray.direction, hit.hit_normal));
+        //         // hit = voxel_hit(ray, camera.clear_color);
+        //         // color += hit.color/float(AMOUNT_OF_RAY_BOUNCES);
+        //         color = vec4(normalize(hit.hit_point), 1.0);
+        //         break;
+        //     }
+        // }
+        color_in_the_end += color * (1.0 / float(AMOUNT_OF_PRIMARY_RAYS));
     }
 
     imageStore(img_out, IDxy, vec4(color_in_the_end.b, color_in_the_end.g, color_in_the_end.r, color_in_the_end.a));
