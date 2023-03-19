@@ -202,9 +202,7 @@ Hit voxel_hit(Ray ray, vec4 clear_col) {
     if (hit_point == vec3(INFINITY_F)) return ret_val;
 
     if (is_leaf_node(temp_voxel)) return fill_hit_color(temp_voxel, ret_val);
-
-    //RECURSION
-
+    //RECURSION_MARKER
     return ret_val;
 }
 
