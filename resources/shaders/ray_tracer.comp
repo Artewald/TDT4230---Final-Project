@@ -40,6 +40,11 @@ struct Hit {
     vec3 normal;
 };
 
+struct IntersectionInfo {
+    vec3 point;
+    vec3 normal;
+};
+
 struct Ray {
     vec3 origin;
     vec3 direction;
@@ -116,35 +121,6 @@ vec3 slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
 
     // return true;
 }
-
-// From https://jcgt.org/published/0007/03/04/
-// bool slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection, out vec3 intersectionPoint, out vec3 normal) {
-//     const vec3 p0 = vec3(voxel.pos_xy, voxel.pos_zw.x);
-//     const vec3 p1 = vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
-
-//     const vec3 t0 = (p0 - ray.origin) * invertedRayDirection;
-//     const vec3 t1 = (p1 - ray.origin) * invertedRayDirection;
-//     const vec3 tmin = min(t0,t1), tmax = max(t0,t1);
-//     const float tmax_val = min_component(tmax);
-//     const float tmin_val = max_component(tmin);
-//     // TODO: Make the tmax_val also work with vectors in the negative space
-    
-//     bool intersects = tmin_val <= tmax_val && tmax_val >= 0.0;
-
-//     if (intersects) {
-//         intersectionPoint = ray.origin + ray.direction * tmin_val;
-        
-//         if (tmin.x > tmin.y && tmin.x > tmin.z) {
-//             normal.x = t0.x < t1.x ? 1.0 : -1.0;
-//         } else if (tmin.y > tmin.z) {
-//             normal.y = t0.y < t1.y ? 1.0 : -1.0;
-//         } else {
-//             normal.z = t0.z < t1.z ? 1.0 : -1.0;
-//         }
-//     }
-    
-//     return intersects;
-// }
 
 uint[8] get_children_indices(VoxelData voxel) {
     return uint[8](voxel._0_0_index, voxel._0_1_index, voxel._0_2_index, voxel._0_3_index, voxel._1_0_index, voxel._1_1_index, voxel._1_2_index, voxel._1_3_index);
@@ -232,20 +208,15 @@ void main() {
         Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
         Hit hit = voxel_hit(ray, camera.clear_color);
         vec4 color = hit.color;
-        // for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
-        //     if (hit.hit) {
-        //         // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-        //         // hit = voxel_hit(ray, camera.clear_color);
-        //         // color += hit.color/float(AMOUNT_OF_RAY_BOUNCES);
-        //         color = vec4(normalize(hit.point), 1.0);
-        //         break;
-        //     }
-        // }
+        for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
+            if (hit.hit) {
+                ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+                hit = voxel_hit(ray, camera.clear_color);
+                color += hit.color/float(AMOUNT_OF_RAY_BOUNCES);
+                break;
+            }
+        }
         
-        // if (hit.hit) {
-        //     color = vec4(normalize(hit.point), 1.0);
-        //     // break;
-        // }
         color_in_the_end += color * (1.0 / float(AMOUNT_OF_PRIMARY_RAYS));
     }
 
