@@ -63,7 +63,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 0;
+const uint AMOUNT_OF_RAY_BOUNCES = 2;
 
 // ==================== Helper functions ====================
 
@@ -110,21 +110,18 @@ IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
     }
 
     // Calculate intersection point and surface normal
-    info.point = ray.origin + ray.direction * tNear;//tFar;
+    info.point = ray.origin + ray.direction * tNear;
 
-    vec3 boxCenter = (boxMin + boxMax) * 0.5;
-    vec3 boxHalfExtents = (boxMax - boxMin) * 0.5;
-    vec3 localIntersection = info.point - boxCenter;
-    vec3 absLocalIntersection = abs(localIntersection);
-    float maxAbs = max(max(absLocalIntersection.x, absLocalIntersection.y), absLocalIntersection.z);
-    vec3 normal;
-    if (maxAbs == absLocalIntersection.x) {
-        normal = vec3(sign(localIntersection.x), 0.0, 0.0);
-    } else if (maxAbs == absLocalIntersection.y) {
-        normal = vec3(0.0, sign(localIntersection.y), 0.0);
+    vec3 normal = vec3(0.0);
+    
+    if (tNear == t1.x) {
+        normal = vec3(-sign(ray.direction.x), 0.0, 0.0);
+    } else if (tNear == t1.y) {
+        normal = vec3(0.0, -sign(ray.direction.y), 0.0);
     } else {
-        normal = vec3(0.0, 0.0, sign(localIntersection.z));
+        normal = vec3(0.0, 0.0, -sign(ray.direction.z));
     }
+
     info.normal = normal;
     return info;
 }
@@ -445,7 +442,7 @@ Ray get_primary_ray(float x_offset, float y_offset) {
     return Ray(camera.camera_to_world[3].xyz, normalize(current_search_pos));
 }
 
-// Main         
+// Main
 void main() {
     ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
     vec4 color_in_the_end = vec4(0.0);
@@ -465,7 +462,7 @@ void main() {
                 break;
             }
         }
-        
+
         color_in_the_end += color * (1.0 / float(AMOUNT_OF_PRIMARY_RAYS));
     }
 
