@@ -72,7 +72,7 @@ const float HALF_PI = 0.5 * 3.14159265359;
 
 const vec3 sun_dir = normalize(vec3(-2.0, -1.0, 0.0));
 
-const vec4 fog_color = vec4(0.0, 0.3451, 0.6941, 1.0);
+const vec4 fog_color = vec4(0.0, 0.35, 0.7, 1.0);
 
 // ==================== Helper functions ====================
 
@@ -105,8 +105,8 @@ vec4 get_fog_color(Ray ray, IntersectionInfo intersection_info) {
     } else {
         dist = length(intersection_info.point - ray.origin);
     }
-    float fog_factor = (-1.0*tanh((dist-FOG_FUNC_CONST)/FOG_FUNC_CONST)+1.0)/2.0;//pow(10.0, -2.0*dist/(HORIZON_DISTANCE*5.0));
-    return fog_color*fog_factor + vec4(1.0, 1.0, 1.0, 1.0)*(1.0-fog_factor);//mix(fog_color, vec4(1.0, 1.0, 1.0, 1.0), dist/max(HORIZON_DISTANCE, ATMOSPHERE_HEIGHT));
+    float fog_factor = (-1.0*tanh((dist-FOG_FUNC_CONST)/FOG_FUNC_CONST)+1.0)/2.0;
+    return fog_color*fog_factor + vec4(1.0, 1.0, 1.0, 1.0)*(1.0-fog_factor);
 }
 
 // ==================== Ray functions ====================
@@ -164,7 +164,7 @@ float get_fog_factor(float dist) {
 
 Hit fill_hit_color(VoxelData voxel, IntersectionInfo intersection, Ray ray) {
     Hit data;
-    data.color = vec4(voxel.color_rg, voxel.color_ba);//mix(fog_color, vec4(voxel.color_rg, voxel.color_ba), get_fog_factor(distance(ray.origin, intersection.point)));
+    data.color = vec4(voxel.color_rg, voxel.color_ba);
     data.hit = true;
     data.point = intersection.point;
     data.normal = intersection.normal;
@@ -497,12 +497,14 @@ void main() {
         Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
         Hit hit = voxel_hit(ray);
         vec4 color = hit.color;
+        bool hit_something = hit.hit;
         for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
             if (hit.hit) {
                 ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
                 hit = voxel_hit(ray);
                 color *= hit.color;
-                break;
+                hit_something = true;
+                continue;
             }
         }
 

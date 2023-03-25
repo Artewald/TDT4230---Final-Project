@@ -63,7 +63,7 @@ const float HALF_PI = 0.5 * 3.14159265359;
 
 const vec3 sun_dir = normalize(vec3(-2.0, -1.0, 0.0));
 
-const vec4 fog_color = vec4(0.0, 0.3451, 0.6941, 1.0);
+const vec4 fog_color = vec4(0.0, 0.35, 0.7, 1.0);
 
 // ==================== Helper functions ====================
 
@@ -155,7 +155,7 @@ float get_fog_factor(float dist) {
 
 Hit fill_hit_color(VoxelData voxel, IntersectionInfo intersection, Ray ray) {
     Hit data;
-    data.color = vec4(voxel.color_rg, voxel.color_ba);//mix(fog_color, vec4(voxel.color_rg, voxel.color_ba), get_fog_factor(distance(ray.origin, intersection.point)));
+    data.color = vec4(voxel.color_rg, voxel.color_ba);
     data.hit = true;
     data.point = intersection.point;
     data.normal = intersection.normal;
@@ -220,7 +220,7 @@ void main() {
                 ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
                 hit = voxel_hit(ray);
                 color *= hit.color;
-                break;
+                continue;
             }
         }
 
