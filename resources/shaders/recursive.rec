@@ -6,10 +6,11 @@ for (int i_NN = 0; i_NN < level_NN.length(); i_NN++) {
     intersection_info = slabs(temp_voxel, ray, invRaydir);
     if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
     if (is_leaf_node(temp_voxel)) {
-        ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-        ret_val.point = intersection_info.point;
-        ret_val.normal = intersection_info.normal;
-        ret_val.hit = true;
+        //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
+        //ret_val.point = intersection_info.point;
+        //ret_val.normal = intersection_info.normal;
+        //ret_val.hit = true;
+        ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
         closest = get_distance(ray, intersection_info);
         continue;
     }
