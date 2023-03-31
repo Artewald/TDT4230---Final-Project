@@ -497,13 +497,11 @@ void main() {
         Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
         Hit hit = voxel_hit(ray);
         vec4 color = hit.color;
-        bool hit_something = hit.hit;
         for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
             if (hit.hit) {
                 ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
                 hit = voxel_hit(ray);
                 color *= hit.color;
-                hit_something = true;
                 continue;
             }
         }
