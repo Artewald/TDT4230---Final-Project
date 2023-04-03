@@ -63,7 +63,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 2;
+const uint AMOUNT_OF_RAY_BOUNCES = 5;
 
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;
@@ -497,14 +497,45 @@ void main() {
         Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
         Hit hit = voxel_hit(ray);
         vec4 color = hit.color;
-        for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
-            if (hit.hit) {
-                ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-                hit = voxel_hit(ray);
-                color *= hit.color;
-                continue;
-            }
+        // For some reason the for-loop stopped working on my laptop, but worked with hard coded if loops, so I will have to hard code them.       
+        // for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
+        //     if (hit.hit) {
+        //         ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+        //         hit = voxel_hit(ray);
+        //         color *= hit.color;
+        //     }
+        // }
+        
+        if (hit.hit) {
+            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            hit = voxel_hit(ray);
+            color *= hit.color;
         }
+        
+        if (hit.hit) {
+            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            hit = voxel_hit(ray);
+            color *= hit.color;
+        }
+        
+        if (hit.hit) {
+            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            hit = voxel_hit(ray);
+            color *= hit.color;
+        }
+        
+        if (hit.hit) {
+            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            hit = voxel_hit(ray);
+            color *= hit.color;
+        }
+        
+        if (hit.hit) {
+            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            hit = voxel_hit(ray);
+            color *= hit.color;
+        }
+        
 
         color_in_the_end += color * (1.0 / float(AMOUNT_OF_PRIMARY_RAYS));
     }

@@ -1,0 +1,6 @@
+
+if (hit.hit) {
+    ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+    hit = voxel_hit(ray);
+    color *= hit.color;
+}

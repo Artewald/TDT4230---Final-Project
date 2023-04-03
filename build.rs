@@ -7,6 +7,8 @@ fn main() {
 
     let recursion = read_to_string("./resources/shaders/recursive.rec").unwrap();
 
+    let ray_bounce = read_to_string("./resources/shaders/ray_bounce.comp").unwrap();
+
     let mut recursed = String::new();
     for i in 0..17 {
         recursed += &recursion
@@ -19,7 +21,30 @@ fn main() {
         recursed += &format!("{}}}\n", "    ".repeat(17 - i));
     }
 
-    shader += &raytracer.replace("//RECURSION_MARKER", &recursed);
+    let mut times_to_bounce_rays = 0;
+    for line in raytracer.clone().split('\n').into_iter() {
+        if line.contains("const uint AMOUNT_OF_RAY_BOUNCES = ") {
+            let mut words = line.split(" = ");
+            words.next().unwrap();
+            times_to_bounce_rays = words
+                .next()
+                .unwrap()
+                .split(';')
+                .next()
+                .unwrap()
+                .trim()
+                .parse()
+                .unwrap();
+        }
+    }
+
+    let ray_bounces = ray_bounce
+        .repeat(times_to_bounce_rays)
+        .replace("\n", &format!("\n{}", "    ".repeat(2)));
+
+    shader += &raytracer
+        .replace("//RECURSION_MARKER", &recursed)
+        .replace("//RAY_BOUNCES_MARKER", &ray_bounces);
     shader += &read_to_string("./resources/shaders/shaders.post").unwrap();
 
     write(
