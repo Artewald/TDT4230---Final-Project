@@ -68,7 +68,8 @@ const uint AMOUNT_OF_RAY_BOUNCES = 3;
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;
 const float FOG_FUNC_CONST = HORIZON_DISTANCE/2.0;
-const float HALF_PI = 0.5 * 3.14159265359;
+const float PI = 3.14159265359;
+const float HALF_PI = 0.5 * PI;
 
 const vec3 sun_dir = normalize(vec3(-2.0, -1.0, 0.0));
 
@@ -107,6 +108,15 @@ vec4 get_fog_color(Ray ray, IntersectionInfo intersection_info) {
     }
     float fog_factor = (-1.0*tanh((dist-FOG_FUNC_CONST)/FOG_FUNC_CONST)+1.0)/2.0;
     return fog_color*fog_factor + vec4(1.0, 1.0, 1.0, 1.0)*(1.0-fog_factor);
+}
+
+vec3 get_random_hemisphere_direction(vec3 normal, int seed) {
+    float u = get_random_number(seed) * 2.0 - 1.0;
+    float phi = get_random_number(seed+1) * 2.0 * PI;
+    float r = sqrt(max(0.0, 1.0-u*u));
+    vec3 dir = vec3(r * cos(phi), r * sin(phi), abs(u));
+    dir = normalize(dir);
+    return dir * sign(dot(normal, dir));
 }
 
 // ==================== Ray functions ====================
@@ -513,19 +523,22 @@ void main() {
         // }
         
         if (hit.hit) {
-            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            ray = Ray(hit.point + hit.normal, get_random_hemisphere_direction(hit.normal, get_pixel_id()));
             hit = voxel_hit(ray);
             color *= hit.color;
         }
         
         if (hit.hit) {
-            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            ray = Ray(hit.point + hit.normal, get_random_hemisphere_direction(hit.normal, get_pixel_id()));
             hit = voxel_hit(ray);
             color *= hit.color;
         }
         
         if (hit.hit) {
-            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+            ray = Ray(hit.point + hit.normal, get_random_hemisphere_direction(hit.normal, get_pixel_id()));
             hit = voxel_hit(ray);
             color *= hit.color;
         }

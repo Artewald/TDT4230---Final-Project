@@ -1,6 +1,7 @@
 
 if (hit.hit) {
-    ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+    // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
+    ray = Ray(hit.point + hit.normal, get_random_hemisphere_direction(hit.normal, get_pixel_id()));
     hit = voxel_hit(ray);
     color *= hit.color;
 }
