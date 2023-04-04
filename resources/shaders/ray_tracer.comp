@@ -76,13 +76,13 @@ float min_component(vec3 vec) {
 }
 
 float get_random_number(int seed) {
-    return fract(sin(float(seed)) * 43758.5453123);
+    return fract(sin(float(seed*948293847)) * 43758.5453123);
 }
 
 float[AMOUNT_OF_PRIMARY_RAYS] get_random_noise(int seed) {
     float[AMOUNT_OF_PRIMARY_RAYS] noise;
     for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
-        noise[i] = get_random_number(seed*10 + i);
+        noise[i] = get_random_number(seed);
     }
     return noise;
 }
