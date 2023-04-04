@@ -63,7 +63,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 5;
+const uint AMOUNT_OF_RAY_BOUNCES = 3;
 
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;
@@ -485,13 +485,19 @@ Ray get_primary_ray(float x_offset, float y_offset) {
     return Ray(camera.camera_to_world[3].xyz, normalize(current_search_pos));
 }
 
+int get_pixel_id() {
+    ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 image_size = imageSize(img_out);
+    return IDxy.x+((IDxy.y-1)*image_size.x);
+}
+
 // Main
 void main() {
     ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
     vec4 color_in_the_end = vec4(0.0);
 
-    float x_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise(IDxy.x);
-    float y_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise(IDxy.y);
+    float x_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise(get_pixel_id());
+    float y_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise(get_pixel_id()*2219011);
 
     for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
         Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
@@ -505,18 +511,6 @@ void main() {
         //         color *= hit.color;
         //     }
         // }
-        
-        if (hit.hit) {
-            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-            hit = voxel_hit(ray);
-            color *= hit.color;
-        }
-        
-        if (hit.hit) {
-            ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-            hit = voxel_hit(ray);
-            color *= hit.color;
-        }
         
         if (hit.hit) {
             ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
