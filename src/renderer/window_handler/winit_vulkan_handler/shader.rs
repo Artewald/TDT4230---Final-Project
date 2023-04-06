@@ -63,7 +63,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 3;
+const uint AMOUNT_OF_RAY_BOUNCES = 1;
 
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;
@@ -86,7 +86,7 @@ float min_component(vec3 vec) {
 }
 
 float get_random_number(int seed) {
-    return fract(sin(float(seed*948293847)) * 43758.5453123);
+    return fract(sin(float(seed)) * 43758.5453123);
 }
 
 float[AMOUNT_OF_PRIMARY_RAYS] get_random_noise(int seed) {
@@ -513,6 +513,10 @@ void main() {
         Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
         Hit hit = voxel_hit(ray);
         vec4 color = hit.color;
+        // if (hit.hit) {
+        //     vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+1*(i+1)*89433);
+        //     color = vec4(hit.normal, 1.0);
+        // }
         // For some reason the for-loop stopped working on my laptop, but worked with hard coded if loops, so I will have to hard code them.       
         // for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
         //     if (hit.hit) {
@@ -522,27 +526,19 @@ void main() {
         //     }
         // }
         
+
         if (hit.hit) {
             // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-            ray = Ray(hit.point + hit.normal, get_random_hemisphere_direction(hit.normal, get_pixel_id()));
+            vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+0*(i+1)*89433);
+            if (new_dir == vec3(0.0, 0.0, 0.0)) {
+                new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+1*(i+100)*89433);
+            }
+            ray = Ray(hit.point + hit.normal, new_dir);
             hit = voxel_hit(ray);
             color *= hit.color;
         }
         
-        if (hit.hit) {
-            // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-            ray = Ray(hit.point + hit.normal, get_random_hemisphere_direction(hit.normal, get_pixel_id()));
-            hit = voxel_hit(ray);
-            color *= hit.color;
-        }
-        
-        if (hit.hit) {
-            // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-            ray = Ray(hit.point + hit.normal, get_random_hemisphere_direction(hit.normal, get_pixel_id()));
-            hit = voxel_hit(ray);
-            color *= hit.color;
-        }
-        
+
 
         color_in_the_end += color * (1.0 / float(AMOUNT_OF_PRIMARY_RAYS));
     }

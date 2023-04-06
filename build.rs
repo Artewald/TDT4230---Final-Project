@@ -38,9 +38,25 @@ fn main() {
         }
     }
 
-    let ray_bounces = ray_bounce
+    let ray_bounces_raw = ray_bounce
         .repeat(times_to_bounce_rays)
         .replace("\n", &format!("\n{}", "    ".repeat(2)));
+
+    let mut counter = 0;
+    let ray_bounces_iter = ray_bounces_raw.split("\n");
+    let mut ray_bounces = String::new();
+    ray_bounces += "\n";
+    for line in ray_bounces_iter {
+        if line.contains("NN") {
+            ray_bounces += &line.replace("NN", &counter.to_string());
+            counter += 1;
+        } else {
+            ray_bounces += &line;
+        }
+        if !line.contains("\n") {
+            ray_bounces += "\n";
+        }
+    }
 
     shader += &raytracer
         .replace("//RECURSION_MARKER", &recursed)
