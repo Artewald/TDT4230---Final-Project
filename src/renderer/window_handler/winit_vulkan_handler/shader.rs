@@ -529,7 +529,7 @@ void main() {
 
         if (hit.hit) {
             // ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-            vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+0*(i+1)*89433);
+            vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+0*(i+1)*89433+int((hit.point.x+hit.point.y+hit.point.z)*1000));
             if (new_dir == vec3(0.0, 0.0, 0.0)) {
                 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+1*(i+100)*89433);
             }
