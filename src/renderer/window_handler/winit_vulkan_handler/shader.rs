@@ -513,10 +513,6 @@ void main() {
         Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
         Hit hit = voxel_hit(ray);
         vec4 color = hit.color;
-        // if (hit.hit) {
-        //     vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+1*(i+1)*89433);
-        //     color = vec4(hit.normal, 1.0);
-        // }
         // For some reason the for-loop stopped working on my laptop, but worked with hard coded if loops, so I will have to hard code them.       
         // for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
         //     if (hit.hit) {

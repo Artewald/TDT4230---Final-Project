@@ -9,7 +9,9 @@ use nalgebra::{Vector2, Vector3, Vector4};
 use crate::threadpool::ThreadPoolHelper;
 use crate::voxel::math::{distance_between_points, view_cm_size};
 
-use self::math::{mul_vector4, vec2_one_d_in_range, vec2_one_d_lenght, vec2_one_d_overlapping};
+use self::math::{
+    mul_vector3, mul_vector4, vec2_one_d_in_range, vec2_one_d_lenght, vec2_one_d_overlapping,
+};
 
 //use self::math::{Vec2, Vec4, Vec3};
 
@@ -24,11 +26,15 @@ pub const CHUNKSIZE: u32 = (4 as u32).pow(CHUNKPOWER);
 pub struct Voxel {
     pub pos: Vector3<f32>,
     pub range: f32,
-    // pub x_range: Vector2<f32>,
-    // pub y_range: Vector2<f32>,
-    // pub z_range: Vector2<f32>,
-    pub color: Vector4<f32>,
+    pub material: Material,
     pub children: [Option<Box<Voxel>>; 8],
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Material {
+    pub color: Vector4<f32>,
+    pub emissive_color: Vector3<f32>,
+    pub emissive_strength: f32,
 }
 
 /// # NOTE!
@@ -40,9 +46,9 @@ pub struct Chunk {
     pub start_voxel: Voxel,
 }
 
-#[derive(Debug, Copy, Clone)]
-struct ColorWeight {
-    color: Vector4<f32>,
+#[derive(Debug, Clone)]
+struct MaterialWeight {
+    material: Material,
     weight: f32,
 }
 
@@ -60,8 +66,7 @@ pub struct VoxelData {
     pub pos_xy: Vector2<f32>,
     // The range value is the pos_zw.y value this is done to save space
     pub pos_zw: Vector2<f32>,
-    pub color_rg: Vector2<f32>,
-    pub color_ba: Vector2<f32>,
+    pub material_index: u32,
     pub _0_0_index: u32,
     pub _0_1_index: u32,
     pub _0_2_index: u32,
@@ -78,7 +83,7 @@ impl Voxel {
     fn recursive_color_calculator(
         &mut self,
         thread_pool: Arc<RwLock<ThreadPoolHelper>>,
-    ) -> ColorWeight {
+    ) -> MaterialWeight {
         //TODO: Parallellize this function. Can be done in a similar way as the filling function.
         let mut actual_children: Vec<Voxel> = vec![];
         for child in self.children.clone() {
@@ -94,14 +99,14 @@ impl Voxel {
         let z_length = vec2_one_d_lenght(Vector2::new(self.pos.z, self.pos.z + self.range));
 
         if actual_children.len() == 0 {
-            return ColorWeight {
-                color: self.color,
+            return MaterialWeight {
                 weight: x_length * y_length * z_length,
+                material: self.material.clone(),
             };
         }
 
-        let mut color_weights: Vec<ColorWeight> = vec![];
-        let mut cpy: Vec<ColorWeight> = vec![];
+        let mut color_weights: Vec<MaterialWeight> = vec![];
+        let mut cpy: Vec<MaterialWeight> = vec![];
         //let mut join_handles = vec![];
 
         let empty_weight = (x_length / 2.0) * (y_length / 2.0) * (z_length / 2.0);
@@ -123,9 +128,9 @@ impl Voxel {
             //     continue;
             // }
 
-            let mut cw = ColorWeight {
-                color: Vector4::new(0.0, 0.0, 0.0, 0.0),
+            let mut cw = MaterialWeight {
                 weight: empty_weight,
+                material: Material::new_default(),
             };
             if self.children[i].is_some() {
                 cw = self.children[i]
@@ -152,19 +157,26 @@ impl Voxel {
             total_weight += color_weight.weight;
         }
 
-        self.color = Vector4::new(0.0, 0.0, 0.0, 0.0);
-        for color_weight in cpy {
-            let percent: f32 = color_weight.weight / total_weight;
-            self.color = self.color
+        self.material = Material::new_default();
+        for material_weight in cpy {
+            let percent: f32 = material_weight.weight / total_weight;
+            self.material.color = self.material.color
                 + mul_vector4(
-                    color_weight.color,
+                    material_weight.material.color,
                     Vector4::new(percent, percent, percent, percent),
                 );
+            self.material.emissive_color = self.material.emissive_color
+                + mul_vector3(
+                    material_weight.material.emissive_color,
+                    Vector3::new(percent, percent, percent),
+                );
+            self.material.emissive_strength = self.material.emissive_strength
+                + material_weight.material.emissive_strength * percent;
         }
 
-        ColorWeight {
-            color: self.color,
+        MaterialWeight {
             weight: x_length * y_length * z_length,
+            material: self.material,
         }
     }
 
@@ -174,10 +186,10 @@ impl Voxel {
         depth: u32,
         current_depth: u32,
         fill_range: Vector3<Vector2<u32>>,
-        color: Vector4<f32>,
+        material: Material,
     ) {
         if depth == current_depth {
-            self.color = color;
+            self.material = material;
             return;
         }
 
@@ -191,7 +203,7 @@ impl Voxel {
             Vector2::new(self.pos.z, self.pos.z + self.range),
             Vector2::new(fill_range.z.x as f32, fill_range.z.y as f32),
         ) {
-            self.color = color;
+            self.material = material;
             return;
         }
 
@@ -230,7 +242,7 @@ impl Voxel {
                                 //  z_range: Vector2::new(new_z_u_range.x as f32, new_z_u_range.y as f32),
                                 pos: new_pos,
                                 range: new_range,
-                                color: Vector4::new(0.0, 0.0, 0.0, 0.0),
+                                material: Material::new_default(),
                                 children: Default::default(),
                             }));
                         }
@@ -252,7 +264,7 @@ impl Voxel {
                             depth,
                             current_depth + 1,
                             fill_range,
-                            color,
+                            material,
                         );
                     }
                 }
@@ -275,23 +287,41 @@ impl Voxel {
         }
     }
 
+    fn material_index_from_leaf_node_material_list(
+        &self,
+        leaf_node_materials: Vec<Material>,
+    ) -> u32 {
+        let mut leaf_material_index = 0;
+        for material in leaf_node_materials.iter() {
+            if material == &self.material {
+                break;
+            }
+            leaf_material_index += 1;
+        }
+        leaf_material_index
+    }
+
+    fn is_too_far_away(&self, camera_pos: Vector3<f64>, pixel_rad: f32) -> bool {
+        view_cm_size(
+            pixel_rad,
+            distance_between_points(camera_pos, Vector3::new(0_f64, 0_f64, 0_f64 as f64)),
+        ) >= self.range
+    }
+
     fn traverse_and_append(
         &self,
         camera_pos: Vector3<f64>,
         pixel_rad: f32,
         current_vec_len: u32,
+        leaf_node_materials: Vec<Material>,
     ) -> Vec<VoxelData> {
-        if view_cm_size(
-            pixel_rad,
-            distance_between_points(camera_pos, Vector3::new(0_f64, 0_f64, 0_f64 as f64)),
-        ) >= self.range
-        {
-            // return vec![VoxelData {x_range: self.x_range, y_range: self.y_range, z_range: self.z_range, color_rg:Vector2::new(self.color.x, self.color.y), color_ba:Vector2::new(self.color.z, self.color.w), _0_0_index: u32::MAX, _0_1_index: u32::MAX, _0_2_index: u32::MAX, _0_3_index: u32::MAX, _1_0_index: u32::MAX, _1_1_index: u32::MAX, _1_2_index: u32::MAX, _1_3_index: u32::MAX }]
+        let leaf_material_index =
+            self.material_index_from_leaf_node_material_list(leaf_node_materials);
+
+        if self.is_too_far_away(camera_pos, pixel_rad) {
             return vec![VoxelData {
                 pos_xy: Vector2::new(self.pos.x, self.pos.y),
                 pos_zw: Vector2::new(self.pos.z, self.range),
-                color_rg: Vector2::new(self.color.x, self.color.y),
-                color_ba: Vector2::new(self.color.z, self.color.w),
                 _0_0_index: u32::MAX,
                 _0_1_index: u32::MAX,
                 _0_2_index: u32::MAX,
@@ -300,33 +330,33 @@ impl Voxel {
                 _1_1_index: u32::MAX,
                 _1_2_index: u32::MAX,
                 _1_3_index: u32::MAX,
+                material_index: leaf_material_index,
             }];
         }
 
         let mut voxels: Vec<VoxelData> = vec![];
         let mut index_array: [u32; 8] = [u32::MAX; 8];
-        for y in 0..2_usize {
-            for x in 0..4_usize {
-                let child = self.children[x + y * 4].clone();
+        for height in 0..2_usize {
+            for node_in_height in 0..4_usize {
+                let child = self.children[node_in_height + height * 4].clone();
                 if child.is_some() {
                     let mut data = child.unwrap().traverse_and_append(
                         camera_pos,
                         pixel_rad,
                         voxels.len() as u32 + current_vec_len,
-                    ); //child.clone().read().unwrap().unwrap().traverse_and_append(camera_pos, pixel_rad);
+                        leaf_node_materials,
+                    );
                     voxels.append(&mut data);
-                    index_array[x + y * 4] = voxels.len() as u32 - 1 + current_vec_len;
+                    index_array[node_in_height + height * 4] =
+                        voxels.len() as u32 - 1 + current_vec_len;
                 }
             }
         }
 
         if voxels.len() == 0 {
-            //return vec![VoxelData {x_range: self.x_range, y_range: self.y_range, z_range: self.z_range, color_rg: Vector2::new(self.color.x, self.color.y), color_ba: Vector2::new(self.color.z, self.color.w), _0_0_index: u32::MAX, _0_1_index: u32::MAX, _0_2_index: u32::MAX, _0_3_index: u32::MAX, _1_0_index: u32::MAX, _1_1_index: u32::MAX, _1_2_index: u32::MAX, _1_3_index: u32::MAX }]
             return vec![VoxelData {
                 pos_xy: Vector2::new(self.pos.x, self.pos.y),
                 pos_zw: Vector2::new(self.pos.z, self.range),
-                color_rg: Vector2::new(self.color.x, self.color.y),
-                color_ba: Vector2::new(self.color.z, self.color.w),
                 _0_0_index: u32::MAX,
                 _0_1_index: u32::MAX,
                 _0_2_index: u32::MAX,
@@ -335,15 +365,13 @@ impl Voxel {
                 _1_1_index: u32::MAX,
                 _1_2_index: u32::MAX,
                 _1_3_index: u32::MAX,
+                material_index: leaf_material_index,
             }];
         }
 
-        //voxels.append(&mut vec![VoxelData {x_range: self.x_range, y_range: self.y_range, z_range: self.z_range, color_rg: Vector2::new(self.color.x, self.color.y), color_ba:Vector2::new(self.color.z, self.color.w), _0_0_index: index_array[0], _0_1_index: index_array[1], _0_2_index: index_array[2], _0_3_index: index_array[3], _1_0_index: index_array[4], _1_1_index: index_array[5], _1_2_index: index_array[6], _1_3_index: index_array[7] }]);
         voxels.append(&mut vec![VoxelData {
             pos_xy: Vector2::new(self.pos.x, self.pos.y),
             pos_zw: Vector2::new(self.pos.z, self.range),
-            color_rg: Vector2::new(self.color.x, self.color.y),
-            color_ba: Vector2::new(self.color.z, self.color.w),
             _0_0_index: index_array[0],
             _0_1_index: index_array[1],
             _0_2_index: index_array[2],
@@ -352,6 +380,7 @@ impl Voxel {
             _1_1_index: index_array[5],
             _1_2_index: index_array[6],
             _1_3_index: index_array[7],
+            material_index: leaf_material_index,
         }]);
         voxels
     }
@@ -404,5 +433,23 @@ impl Chunk {
     pub fn get_oct_tree(&self, camera_pos: Vector3<f64>, pixel_rad: f32) -> Vec<VoxelData> {
         self.start_voxel
             .traverse_and_append(camera_pos, pixel_rad, 0)
+    }
+}
+
+impl Material {
+    pub fn new(color: Vector4<f32>, emissive_color: Vector3<f32>, emissive_strength: f32) -> Self {
+        Self {
+            color,
+            emissive_color,
+            emissive_strength,
+        }
+    }
+
+    pub fn new_default() -> Self {
+        Self {
+            color: Vector4::new(0.0, 0.0, 0.0, 1.0),
+            emissive_color: Vector3::new(0.0, 0.0, 0.0),
+            emissive_strength: 0.0,
+        }
     }
 }
