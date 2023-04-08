@@ -30,7 +30,8 @@ pub struct Voxel {
     pub children: [Option<Box<Voxel>>; 8],
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
+#[repr(C, align(16))]
 pub struct Material {
     pub color: Vector4<f32>,
     pub emissive_color: Vector3<f32>,
@@ -75,6 +76,7 @@ pub struct VoxelData {
     pub _1_1_index: u32,
     pub _1_2_index: u32,
     pub _1_3_index: u32,
+    pub _padding: u32,
 }
 
 impl Voxel {
@@ -106,7 +108,6 @@ impl Voxel {
         }
 
         let mut color_weights: Vec<MaterialWeight> = vec![];
-        let mut cpy: Vec<MaterialWeight> = vec![];
         //let mut join_handles = vec![];
 
         let empty_weight = (x_length / 2.0) * (y_length / 2.0) * (z_length / 2.0);
@@ -140,7 +141,6 @@ impl Voxel {
             }
 
             color_weights.push(cw);
-            cpy.push(cw);
         }
 
         // for data in join_handles {
@@ -150,15 +150,15 @@ impl Voxel {
         // }
 
         let mut total_weight: f32 = 0.0;
-        for color_weight in color_weights {
+        color_weights.iter().for_each(|color_weight| {
             if color_weight.weight < 0.0 {
                 panic!("Voxel::recursive_color_calculator(): TheColorWeight should never be less than zero!");
             }
             total_weight += color_weight.weight;
-        }
+        });
 
         self.material = Material::new_default();
-        for material_weight in cpy {
+        color_weights.iter().for_each(|material_weight| {
             let percent: f32 = material_weight.weight / total_weight;
             self.material.color = self.material.color
                 + mul_vector4(
@@ -172,11 +172,11 @@ impl Voxel {
                 );
             self.material.emissive_strength = self.material.emissive_strength
                 + material_weight.material.emissive_strength * percent;
-        }
+        });
 
         MaterialWeight {
             weight: x_length * y_length * z_length,
-            material: self.material,
+            material: self.material.clone(),
         }
     }
 
@@ -264,7 +264,7 @@ impl Voxel {
                             depth,
                             current_depth + 1,
                             fill_range,
-                            material,
+                            material.clone(),
                         );
                     }
                 }
@@ -289,7 +289,7 @@ impl Voxel {
 
     fn material_index_from_leaf_node_material_list(
         &self,
-        leaf_node_materials: Vec<Material>,
+        leaf_node_materials: &Vec<Material>,
     ) -> u32 {
         let mut leaf_material_index = 0;
         for material in leaf_node_materials.iter() {
@@ -308,17 +308,24 @@ impl Voxel {
         ) >= self.range
     }
 
+    fn is_leaf_node(&self, camera_pos: Vector3<f64>, pixel_rad: f32) -> bool {
+        if self.is_too_far_away(camera_pos, pixel_rad) {
+            return true;
+        }
+        !self.children.iter().any(|c| c.is_some())
+    }
+
     fn traverse_and_append(
         &self,
         camera_pos: Vector3<f64>,
         pixel_rad: f32,
         current_vec_len: u32,
-        leaf_node_materials: Vec<Material>,
+        leaf_node_materials: &Vec<Material>,
     ) -> Vec<VoxelData> {
         let leaf_material_index =
             self.material_index_from_leaf_node_material_list(leaf_node_materials);
 
-        if self.is_too_far_away(camera_pos, pixel_rad) {
+        if self.is_leaf_node(camera_pos, pixel_rad) {
             return vec![VoxelData {
                 pos_xy: Vector2::new(self.pos.x, self.pos.y),
                 pos_zw: Vector2::new(self.pos.z, self.range),
@@ -331,6 +338,7 @@ impl Voxel {
                 _1_2_index: u32::MAX,
                 _1_3_index: u32::MAX,
                 material_index: leaf_material_index,
+                _padding: 0,
             }];
         }
 
@@ -353,22 +361,6 @@ impl Voxel {
             }
         }
 
-        if voxels.len() == 0 {
-            return vec![VoxelData {
-                pos_xy: Vector2::new(self.pos.x, self.pos.y),
-                pos_zw: Vector2::new(self.pos.z, self.range),
-                _0_0_index: u32::MAX,
-                _0_1_index: u32::MAX,
-                _0_2_index: u32::MAX,
-                _0_3_index: u32::MAX,
-                _1_0_index: u32::MAX,
-                _1_1_index: u32::MAX,
-                _1_2_index: u32::MAX,
-                _1_3_index: u32::MAX,
-                material_index: leaf_material_index,
-            }];
-        }
-
         voxels.append(&mut vec![VoxelData {
             pos_xy: Vector2::new(self.pos.x, self.pos.y),
             pos_zw: Vector2::new(self.pos.z, self.range),
@@ -380,9 +372,44 @@ impl Voxel {
             _1_1_index: index_array[5],
             _1_2_index: index_array[6],
             _1_3_index: index_array[7],
-            material_index: leaf_material_index,
+            material_index: u32::MAX,
+            _padding: 0,
         }]);
         voxels
+    }
+
+    pub fn get_leaf_material_data(
+        &self,
+        camera_pos: Vector3<f64>,
+        pixel_rad: f32,
+    ) -> Vec<Material> {
+        let mut leaf_materials = Vec::new();
+        self.append_leaf_materials(&mut leaf_materials, camera_pos, pixel_rad);
+        leaf_materials
+    }
+
+    fn append_leaf_materials(
+        &self,
+        material_list: &mut Vec<Material>,
+        camera_pos: Vector3<f64>,
+        pixel_rad: f32,
+    ) {
+        if self.is_leaf_node(camera_pos, pixel_rad) {
+            if !material_list
+                .iter()
+                .any(|material| material == &self.material)
+            {
+                material_list.push(self.material.clone());
+            }
+            return;
+        }
+
+        self.children.iter().for_each(|c| {
+            let Some(child) = c else {
+                return;
+            };
+            child.append_leaf_materials(material_list, camera_pos, pixel_rad);
+        });
     }
 }
 
@@ -405,8 +432,8 @@ impl Chunk {
                 //    z_range: Vector2::new(0 as f32, CHUNKSIZE as f32),
                 pos: Vector3::new(0_f32, 0_f32, 0_f32),
                 range: CHUNKSIZE as f32,
-                color: Vector4::new(0.0, 0.0, 0.0, 0.0),
                 children: Default::default(),
+                material: Material::new_default(),
             },
         }
     }
@@ -416,10 +443,15 @@ impl Chunk {
         &mut self,
         thread_pool: Arc<RwLock<ThreadPoolHelper>>,
         fill_range: Vector3<Vector2<u32>>,
-        color: Vector4<f32>,
+        material: Material,
     ) {
-        self.start_voxel
-            .traverse_and_color(thread_pool.clone(), self.depth, 0, fill_range, color);
+        self.start_voxel.traverse_and_color(
+            thread_pool.clone(),
+            self.depth,
+            0,
+            fill_range,
+            material,
+        );
         self.start_voxel
             .recursive_color_calculator(thread_pool.clone());
     }
@@ -430,9 +462,19 @@ impl Chunk {
     }
 
     /// Get's the oct tree data for this chunk so that it can be used on the GPU
-    pub fn get_oct_tree(&self, camera_pos: Vector3<f64>, pixel_rad: f32) -> Vec<VoxelData> {
-        self.start_voxel
-            .traverse_and_append(camera_pos, pixel_rad, 0)
+    pub fn get_oct_tree(
+        &self,
+        camera_pos: Vector3<f64>,
+        pixel_rad: f32,
+    ) -> (Vec<VoxelData>, Vec<Material>) {
+        let materials = self
+            .start_voxel
+            .get_leaf_material_data(camera_pos, pixel_rad);
+        (
+            self.start_voxel
+                .traverse_and_append(camera_pos, pixel_rad, 0, &materials),
+            materials,
+        )
     }
 }
 

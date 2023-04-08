@@ -6,8 +6,7 @@ struct VoxelData
     vec2 pos_xy;
     // The range value (size of the voxel) is the pos_zw.y value this is done to save space
     vec2 pos_zw;
-    vec2 color_rg;
-    vec2 color_ba;
+    uint material_index;
     uint _0_0_index;
     uint _0_1_index;
     uint _0_2_index;
@@ -18,11 +17,21 @@ struct VoxelData
     uint _1_3_index;
 };
 
+struct VoxelMaterial {
+    vec4 color;
+    vec3 emissive_color;
+    float emissive_strength;
+};
+
 layout(set = 0, binding = 0) readonly buffer Data {
     VoxelData data[];
 } voxel_data;
 
-layout(set = 0, binding = 1)  readonly buffer CameraData {
+layout(set = 0, binding = 1) readonly buffer Materials {
+    VoxelMaterial data[];
+} voxel_materials;
+
+layout(set = 0, binding = 2)  readonly buffer CameraData {
     uint field_of_view;
     float render_distance;
     float aspectRatio;
@@ -165,7 +174,7 @@ float get_fog_factor(float dist) {
 
 Hit fill_hit_color(VoxelData voxel, IntersectionInfo intersection, Ray ray) {
     Hit data;
-    data.color = vec4(voxel.color_rg, voxel.color_ba);
+    data.color = voxel_materials.data[voxel.material_index].color;
     data.hit = true;
     data.point = intersection.point;
     data.normal = intersection.normal;

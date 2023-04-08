@@ -4,7 +4,7 @@ use std::{
     time::Instant,
 };
 
-use artewald_engine_lib::voxel::VoxelData;
+use artewald_engine_lib::voxel::{Material, VoxelData};
 use nalgebra::{Vector3, Vector4};
 use vulkano::{
     buffer::CpuAccessibleBuffer,
@@ -33,7 +33,10 @@ use winit::{
 
 use crate::renderer::camera::Camera;
 
-use self::{buffers::render_buffer, vulkan_data::VulkanData};
+use self::{
+    buffers::{material_buffer, render_buffer},
+    vulkan_data::VulkanData,
+};
 
 use buffers::{camera_data_buffer, voxel_buffer};
 use shader::render_shader;
@@ -51,7 +54,7 @@ pub struct WinitVulkanHandler {
 }
 
 impl WindowHandler for WinitVulkanHandler {
-    fn run(&mut self, inital_voxels_to_present: Vec<VoxelData>) {
+    fn run(&mut self, inital_voxels_to_present: Vec<VoxelData>, voxel_materials: Vec<Material>) {
         let vulkan_data_reference = self.vulkan_data.clone();
         let event_loop = EventLoop::new();
         vulkan_data_reference
@@ -127,6 +130,18 @@ impl WindowHandler for WinitVulkanHandler {
                 .memory_allocator
                 .clone(),
         );
+
+        let material_buffer = material_buffer(
+            voxel_materials,
+            vulkan_data_reference
+                .read()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .memory_allocator
+                .clone(),
+        );
+
         let mut render_buffer_data = render_buffer(vulkan_data_reference.clone());
 
         let compute_pipeline_clone = compute_pipline.clone();
@@ -142,6 +157,7 @@ impl WindowHandler for WinitVulkanHandler {
                 .clone(),
             set_layouts,
             voxel_buffer.clone(),
+            material_buffer.clone(),
             camera_data_buffer.clone(),
             render_buffer_data.view.clone(),
         );
@@ -306,6 +322,7 @@ impl WindowHandler for WinitVulkanHandler {
                                 .clone(),
                             new_set_layouts,
                             voxel_buffer.clone(),
+                            material_buffer.clone(),
                             camera_data_buffer.clone(),
                             render_buffer_data.view.clone(),
                         );
@@ -577,6 +594,7 @@ impl WinitVulkanHandler {
         desc_allocator: Arc<StandardDescriptorSetAllocator>,
         set_layouts: &[Arc<DescriptorSetLayout>],
         voxel_buffer: Arc<CpuAccessibleBuffer<[VoxelData]>>,
+        material_buffer: Arc<CpuAccessibleBuffer<[Material]>>,
         misc_buffer: Arc<CpuAccessibleBuffer<Camera>>,
         img_view: Arc<dyn ImageViewAbstract>,
     ) -> Vec<Arc<PersistentDescriptorSet>> {
@@ -597,7 +615,8 @@ impl WinitVulkanHandler {
                             set_layout.clone(),
                             [
                                 WriteDescriptorSet::buffer(0, voxel_buffer.clone()),
-                                WriteDescriptorSet::buffer(1, misc_buffer.clone()),
+                                WriteDescriptorSet::buffer(1, material_buffer.clone()),
+                                WriteDescriptorSet::buffer(2, misc_buffer.clone()),
                             ],
                         )
                         .unwrap(),
