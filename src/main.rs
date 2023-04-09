@@ -16,6 +16,9 @@ fn main() {
     green_material.color = Vector4::new(0.0, 1.0, 0.0, 1.0);
     let mut red_material = Material::new_default();
     red_material.color = Vector4::new(1.0, 0.0, 0.0, 1.0);
+    let mut light_material = Material::new_default();
+    light_material.emissive_color = Vector3::new(1.0, 1.0, 1.0);
+    light_material.emissive_strength = 1.0;
 
     chunk.fill_voxels(
         thread_pool.clone(),
@@ -26,6 +29,15 @@ fn main() {
         thread_pool.clone(),
         Vector3::new(Vector2::new(0, 3), Vector2::new(2, 5), Vector2::new(5, 10)),
         green_material,
+    );
+    chunk.fill_voxels(
+        thread_pool.clone(),
+        Vector3::new(
+            Vector2::new(0, 15),
+            Vector2::new(10, 11),
+            Vector2::new(0, 20),
+        ),
+        light_material,
     );
     let (voxel_data, materials) = chunk.get_oct_tree(
         Vector3::new(0.0, 0.0, 0.0),

@@ -6,5 +6,6 @@ if (hit.hit) {
     }
     ray = Ray(hit.point + hit.normal, new_dir);
     hit = voxel_hit(ray);
-    color *= hit.color;
+    light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
+    color *= hit.material.color;
 }
