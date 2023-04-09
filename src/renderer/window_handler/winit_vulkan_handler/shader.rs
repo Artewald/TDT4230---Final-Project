@@ -48,6 +48,7 @@ layout(set = 0, binding = 2)  readonly buffer CameraData {
     float fov_tan;
     mat4 camera_to_world;
     vec4 clear_color;
+    uint random_number;
 } camera;
 
 layout(set = 1, binding = 0, rgba8) uniform image2D img_out; 
@@ -97,11 +98,11 @@ float min_component(vec3 vec) {
     return min(min(vec.x, vec.y), vec.z);
 }
 
-float get_random_number(int seed) {
-    return fract(sin(float(seed)) * 43758.5453123);
+float get_random_number(uint seed) {
+    return fract(sin(float(seed+camera.random_number)) * 43758.5453123);
 }
 
-float[AMOUNT_OF_PRIMARY_RAYS] get_random_noise(int seed) {
+float[AMOUNT_OF_PRIMARY_RAYS] get_random_noise(uint seed) {
     float[AMOUNT_OF_PRIMARY_RAYS] noise;
     for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
         noise[i] = get_random_number(seed);
@@ -122,7 +123,7 @@ vec4 get_fog_color(Ray ray, IntersectionInfo intersection_info) {
     return fog_color*fog_factor + vec4(1.0, 1.0, 1.0, 1.0)*(1.0-fog_factor);
 }
 
-vec3 get_random_hemisphere_direction(vec3 normal, int seed) {
+vec3 get_random_hemisphere_direction(vec3 normal, uint seed) {
     float u = get_random_number(seed) * 2.0 - 1.0;
     float phi = get_random_number(seed+1) * 2.0 * PI;
     float r = sqrt(max(0.0, 1.0-u*u));
@@ -540,9 +541,9 @@ void main() {
         
 
         if (hit.hit) {
-            vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+0*(i+1)*89433+int((hit.point.x+hit.point.y+hit.point.z)*1000));
+            vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id());
             if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+1*(i+100)*89433);
+                new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+0*(i+100)*89433);
             }
             ray = Ray(hit.point + hit.normal, new_dir);
             hit = voxel_hit(ray);

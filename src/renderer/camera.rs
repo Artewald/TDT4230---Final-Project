@@ -10,6 +10,7 @@ pub struct Camera {
     pub fov_tan: f32,
     pub camera_to_world_mat: Matrix4<f32>,
     pub clear_color: Vector4<f32>,
+    pub random_number: u32,
     pub position: Vector3<f32>,
 }
 
@@ -50,6 +51,7 @@ impl Camera {
             camera_to_world_mat: Self::create_camera_to_world_space(forward, up, position),
             clear_color,
             position,
+            random_number: 0,
         }
     }
 
@@ -92,5 +94,9 @@ impl Camera {
             self.position.y -= right_vec.y * delta_time * movement_speed;
             self.position.z -= right_vec.z * delta_time * movement_speed;
         }
+    }
+
+    pub fn make_new_random_number(&mut self) {
+        self.random_number = rand::random::<u16>() as u32;
     }
 }

@@ -1,6 +1,6 @@
 
 if (hit.hit) {
-    vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+NN*(i+1)*89433+int((hit.point.x+hit.point.y+hit.point.z)*1000));
+    vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id());
     if (new_dir == vec3(0.0, 0.0, 0.0)) {
         new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+NN*(i+100)*89433);
     }

@@ -360,12 +360,19 @@ impl WindowHandler for WinitVulkanHandler {
                         delta_time.elapsed().as_millis() as f32,
                         movement_speed,
                     );
+
                     delta_time = Instant::now();
                     camera_data_buffer
                         .clone()
                         .write()
                         .unwrap()
                         .update_camera_dir(look_target, Vector3::new(0.0, 1.0, 0.0));
+
+                    camera_data_buffer
+                        .clone()
+                        .write()
+                        .unwrap()
+                        .make_new_random_number();
 
                     let mut builder = AutoCommandBufferBuilder::primary(
                         vulkan_data_reference
