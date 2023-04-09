@@ -12,9 +12,10 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 struct VoxelData
 {
-    vec2 pos_xy;
+    // vec2 pos_xy;
     // The range value (size of the voxel) is the pos_zw.y value this is done to save space
-    vec2 pos_zw;
+    // vec2 pos_zw;
+    vec4 pos;
     uint material_index;
     uint _0_0_index;
     uint _0_1_index;
@@ -131,8 +132,8 @@ vec3 get_random_hemisphere_direction(vec3 normal, int seed) {
 // ==================== Ray functions ====================
 
 IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
-    const vec3 boxMin = vec3(voxel.pos_xy, voxel.pos_zw.x);
-    const vec3 boxMax = vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
+    const vec3 boxMin = voxel.pos.xyz;//vec3(voxel.pos_xy, voxel.pos_zw.x);
+    const vec3 boxMax = voxel.pos.xyz + voxel.pos.w;//vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
 
     vec3 tMin = (boxMin - ray.origin) * invertedRayDirection;
     vec3 tMax = (boxMax - ray.origin) * invertedRayDirection;

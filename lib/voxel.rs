@@ -63,10 +63,8 @@ struct ParallellVoxelData {
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
 pub struct VoxelData {
-    // For some reason using Vector3 and 4 do not work. The data gets get corrupted so I can only use Vector2s
-    pub pos_xy: Vector2<f32>,
-    // The range value is the pos_zw.y value this is done to save space
-    pub pos_zw: Vector2<f32>,
+    // The range value is the pos.w value this is done to not have to add padding multiple places (because of GPU memory alignment issues)
+    pub pos: Vector4<f32>,
     pub material_index: u32,
     pub _0_0_index: u32,
     pub _0_1_index: u32,
@@ -76,7 +74,7 @@ pub struct VoxelData {
     pub _1_1_index: u32,
     pub _1_2_index: u32,
     pub _1_3_index: u32,
-    pub _padding: u32,
+    pub _padding: [u32; 3], // Needed due to alignment issues on the GPU
 }
 
 impl Voxel {
@@ -327,8 +325,7 @@ impl Voxel {
 
         if self.is_leaf_node(camera_pos, pixel_rad) {
             return vec![VoxelData {
-                pos_xy: Vector2::new(self.pos.x, self.pos.y),
-                pos_zw: Vector2::new(self.pos.z, self.range),
+                pos: Vector4::new(self.pos.x, self.pos.y, self.pos.z, self.range),
                 _0_0_index: u32::MAX,
                 _0_1_index: u32::MAX,
                 _0_2_index: u32::MAX,
@@ -338,7 +335,7 @@ impl Voxel {
                 _1_2_index: u32::MAX,
                 _1_3_index: u32::MAX,
                 material_index: leaf_material_index,
-                _padding: 0,
+                _padding: [0, 0, 0],
             }];
         }
 
@@ -362,8 +359,7 @@ impl Voxel {
         }
 
         voxels.append(&mut vec![VoxelData {
-            pos_xy: Vector2::new(self.pos.x, self.pos.y),
-            pos_zw: Vector2::new(self.pos.z, self.range),
+            pos: Vector4::new(self.pos.x, self.pos.y, self.pos.z, self.range),
             _0_0_index: index_array[0],
             _0_1_index: index_array[1],
             _0_2_index: index_array[2],
@@ -373,7 +369,7 @@ impl Voxel {
             _1_2_index: index_array[6],
             _1_3_index: index_array[7],
             material_index: u32::MAX,
-            _padding: 0,
+            _padding: [0, 0, 0],
         }]);
         voxels
     }
