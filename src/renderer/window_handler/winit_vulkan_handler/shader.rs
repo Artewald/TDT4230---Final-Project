@@ -88,6 +88,9 @@ const vec4 fog_color = vec4(0.0, 0.35, 0.7, 1.0);
 
 const VoxelMaterial empty_material = VoxelMaterial(vec4(0.0, 0.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 0.0);
 
+// ==================== Other variables ====================
+uint rand_num = camera.random_number;
+
 // ==================== Helper functions ====================
 
 float max_component(vec3 vec) {
@@ -99,20 +102,19 @@ float min_component(vec3 vec) {
 }
 
 // Mainly from https://stackoverflow.com/a/167764
-float get_random_number(uint seed) {
-    uint num = seed + camera.random_number;
-    num = (num ^ 61) ^ (num >> 16);
-    num = num + (num << 3);
-    num = num ^ (num >> 4);
-    num = num * 0x27d4eb2d;
-    num = num ^ (num >> 15);
-    return fract(float(num)/float(UINT_MAX));
+float get_random_number() {
+    rand_num = (rand_num ^ 61) ^ (rand_num >> 16);
+    rand_num = rand_num + (rand_num << 3);
+    rand_num = rand_num ^ (rand_num >> 4);
+    rand_num = rand_num * 0x27d4eb2d;
+    rand_num = rand_num ^ (rand_num >> 15);
+    return fract(float(rand_num)/float(UINT_MAX));
 }
 
-float[AMOUNT_OF_PRIMARY_RAYS] get_random_noise(uint seed) {
+float[AMOUNT_OF_PRIMARY_RAYS] get_random_noise() {
     float[AMOUNT_OF_PRIMARY_RAYS] noise;
     for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
-        noise[i] = get_random_number(seed);
+        noise[i] = get_random_number();
     }
     return noise;
 }
@@ -131,8 +133,8 @@ vec4 get_fog_color(Ray ray, IntersectionInfo intersection_info) {
 }
 
 vec3 get_random_hemisphere_direction(vec3 normal, uint seed) {
-    float u = get_random_number(seed) * 2.0 - 1.0;
-    float phi = get_random_number(seed+1) * 2.0 * PI;
+    float u = get_random_number() * 2.0 - 1.0;
+    float phi = get_random_number() * 2.0 * PI;
     float r = sqrt(max(0.0, 1.0-u*u));
     vec3 dir = vec3(r * cos(phi), r * sin(phi), abs(u));
     dir = normalize(dir);
@@ -525,9 +527,10 @@ int get_pixel_id() {
 void main() {
     ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
     vec4 color_in_the_end = vec4(0.0);
+    rand_num += get_pixel_id();
 
-    float x_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise(get_pixel_id());
-    float y_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise(get_pixel_id()*2219011);
+    float x_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise();
+    float y_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise();
 
     for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
         vec3 light = vec3(0.0);
