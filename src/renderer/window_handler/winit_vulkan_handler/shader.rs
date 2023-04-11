@@ -132,7 +132,7 @@ vec4 get_fog_color(Ray ray, IntersectionInfo intersection_info) {
     return fog_color*fog_factor + vec4(1.0, 1.0, 1.0, 1.0)*(1.0-fog_factor);
 }
 
-vec3 get_random_hemisphere_direction(vec3 normal, uint seed) {
+vec3 get_random_hemisphere_direction(vec3 normal) {
     float u = get_random_number() * 2.0 - 1.0;
     float phi = get_random_number() * 2.0 * PI;
     float r = sqrt(max(0.0, 1.0-u*u));
@@ -551,9 +551,9 @@ void main() {
         
 
         if (hit.hit) {
-            vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id());
+            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
             if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+0*(i+100)*89433);
+                new_dir = get_random_hemisphere_direction(hit.normal);
             }
             ray = Ray(hit.point + hit.normal, new_dir);
             hit = voxel_hit(ray);

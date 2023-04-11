@@ -1,8 +1,8 @@
 
 if (hit.hit) {
-    vec3 new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id());
+    vec3 new_dir = get_random_hemisphere_direction(hit.normal);
     if (new_dir == vec3(0.0, 0.0, 0.0)) {
-        new_dir = get_random_hemisphere_direction(hit.normal, get_pixel_id()+NN*(i+100)*89433);
+        new_dir = get_random_hemisphere_direction(hit.normal);
     }
     ray = Ray(hit.point + hit.normal, new_dir);
     hit = voxel_hit(ray);
