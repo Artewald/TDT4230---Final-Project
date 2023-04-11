@@ -97,6 +97,6 @@ impl Camera {
     }
 
     pub fn make_new_random_number(&mut self) {
-        self.random_number = rand::random::<u16>() as u32;
+        self.random_number = rand::random::<u32>() as u32;
     }
 }

@@ -98,8 +98,15 @@ float min_component(vec3 vec) {
     return min(min(vec.x, vec.y), vec.z);
 }
 
+// Mainly from https://stackoverflow.com/a/167764
 float get_random_number(uint seed) {
-    return fract(sin(float(seed+camera.random_number)) * 43758.5453123);
+    uint num = seed + camera.random_number;
+    num = (num ^ 61) ^ (num >> 16);
+    num = num + (num << 3);
+    num = num ^ (num >> 4);
+    num = num * 0x27d4eb2d;
+    num = num ^ (num >> 15);
+    return fract(float(num)/float(UINT_MAX));
 }
 
 float[AMOUNT_OF_PRIMARY_RAYS] get_random_noise(uint seed) {
