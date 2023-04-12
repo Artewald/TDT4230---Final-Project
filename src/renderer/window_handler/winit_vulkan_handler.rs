@@ -266,6 +266,7 @@ impl WindowHandler for WinitVulkanHandler {
                             .window
                             .set_cursor_position(center)
                             .unwrap();
+                        camera_data_buffer.clone().write().unwrap().reset_frame_weight();
                     }
                 }
 
@@ -373,6 +374,8 @@ impl WindowHandler for WinitVulkanHandler {
                         .write()
                         .unwrap()
                         .make_new_random_number();
+
+                    camera_data_buffer.clone().write().unwrap().update_frame_weight();
 
                     let mut builder = AutoCommandBufferBuilder::primary(
                         vulkan_data_reference
@@ -633,7 +636,9 @@ impl WinitVulkanHandler {
                         PersistentDescriptorSet::new(
                             desc_allocator.clone().as_ref(),
                             set_layout.clone(),
-                            [WriteDescriptorSet::image_view(0, img_view.clone())],
+                            [
+                                WriteDescriptorSet::image_view(0, img_view.clone()),
+                                ],
                         )
                         .unwrap(),
                     )

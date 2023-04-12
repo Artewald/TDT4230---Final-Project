@@ -11,6 +11,8 @@ pub struct Camera {
     pub camera_to_world_mat: Matrix4<f32>,
     pub clear_color: Vector4<f32>,
     pub random_number: u32,
+    pub frame_weight: f32,
+    pub frames_since_last_movement: u32,
     pub position: Vector3<f32>,
 }
 
@@ -52,6 +54,8 @@ impl Camera {
             clear_color,
             position,
             random_number: 0,
+            frames_since_last_movement: 0,
+            frame_weight: 1.0,
         }
     }
 
@@ -75,28 +79,46 @@ impl Camera {
             self.position.x -= forward_vec.x * delta_time * movement_speed;
             self.position.y += forward_vec.y * delta_time * movement_speed;
             self.position.z += forward_vec.z * delta_time * movement_speed;
+            self.frames_since_last_movement = 0;
         } else if input.x < 0.0 {
             self.position.x += forward_vec.x * delta_time * movement_speed;
             self.position.y -= forward_vec.y * delta_time * movement_speed;
             self.position.z -= forward_vec.z * delta_time * movement_speed;
+            self.frames_since_last_movement = 0;
         }
         if input.y > 0.0 {
             self.position.y += delta_time * movement_speed;
+            self.frames_since_last_movement = 0;
         } else if input.y < 0.0 {
             self.position.y -= delta_time * movement_speed;
+            self.frames_since_last_movement = 0;
         }
         if input.z > 0.0 {
             self.position.x -= right_vec.x * delta_time * movement_speed;
             self.position.y += right_vec.y * delta_time * movement_speed;
             self.position.z += right_vec.z * delta_time * movement_speed;
+            self.frames_since_last_movement = 0;
         } else if input.z < 0.0 {
             self.position.x += right_vec.x * delta_time * movement_speed;
             self.position.y -= right_vec.y * delta_time * movement_speed;
             self.position.z -= right_vec.z * delta_time * movement_speed;
+            self.frames_since_last_movement = 0;
         }
     }
 
     pub fn make_new_random_number(&mut self) {
         self.random_number = rand::random::<u32>() as u32;
+    }
+
+    pub fn update_frame_weight(&mut self) {
+        self.frame_weight = 1.0/(self.frames_since_last_movement as f32 + 1.0);
+        if self.frames_since_last_movement >= u32::MAX-1 {
+            return;
+        }
+        self.frames_since_last_movement += 1;
+    }
+
+    pub fn reset_frame_weight(&mut self) {
+        self.frames_since_last_movement = 0;
     }
 }

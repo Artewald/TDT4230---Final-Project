@@ -49,9 +49,10 @@ layout(set = 0, binding = 2)  readonly buffer CameraData {
     mat4 camera_to_world;
     vec4 clear_color;
     uint random_number;
+    float image_weight;
 } camera;
 
-layout(set = 1, binding = 0, rgba8) uniform image2D img_out; 
+layout(set = 1, binding = 0, rgba8) uniform image2D img_out;
 
 struct IntersectionInfo {
     vec3 point;
@@ -74,7 +75,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 1;
+const uint AMOUNT_OF_RAY_BOUNCES = 5;
 
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;
@@ -561,11 +562,58 @@ void main() {
             color *= hit.material.color;
         }
         
+        if (hit.hit) {
+            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            if (new_dir == vec3(0.0, 0.0, 0.0)) {
+                new_dir = get_random_hemisphere_direction(hit.normal);
+            }
+            ray = Ray(hit.point + hit.normal, new_dir);
+            hit = voxel_hit(ray);
+            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
+            color *= hit.material.color;
+        }
+        
+        if (hit.hit) {
+            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            if (new_dir == vec3(0.0, 0.0, 0.0)) {
+                new_dir = get_random_hemisphere_direction(hit.normal);
+            }
+            ray = Ray(hit.point + hit.normal, new_dir);
+            hit = voxel_hit(ray);
+            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
+            color *= hit.material.color;
+        }
+        
+        if (hit.hit) {
+            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            if (new_dir == vec3(0.0, 0.0, 0.0)) {
+                new_dir = get_random_hemisphere_direction(hit.normal);
+            }
+            ray = Ray(hit.point + hit.normal, new_dir);
+            hit = voxel_hit(ray);
+            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
+            color *= hit.material.color;
+        }
+        
+        if (hit.hit) {
+            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            if (new_dir == vec3(0.0, 0.0, 0.0)) {
+                new_dir = get_random_hemisphere_direction(hit.normal);
+            }
+            ray = Ray(hit.point + hit.normal, new_dir);
+            hit = voxel_hit(ray);
+            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
+            color *= hit.material.color;
+        }
+        
 
 
         color_in_the_end += vec4(light, 1.0) * (1.0 / float(AMOUNT_OF_PRIMARY_RAYS));
     }
 
+    vec4 old_pixel = imageLoad(img_out, IDxy);
+    old_pixel = vec4(old_pixel.b, old_pixel.g, old_pixel.r, old_pixel.a);
+    color_in_the_end = old_pixel * (1.0 - camera.image_weight) + color_in_the_end * camera.image_weight;
     imageStore(img_out, IDxy, vec4(color_in_the_end.b, color_in_the_end.g, color_in_the_end.r, color_in_the_end.a));
 }
             "
