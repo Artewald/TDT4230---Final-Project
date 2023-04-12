@@ -133,6 +133,10 @@ vec3 get_random_hemisphere_direction(vec3 normal) {
     return dir * sign(dot(normal, dir));
 }
 
+vec3 get_random_direction() {
+    return vec3(get_random_number(), get_random_number(), get_random_number());
+}
+
 // ==================== Ray functions ====================
 
 IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {

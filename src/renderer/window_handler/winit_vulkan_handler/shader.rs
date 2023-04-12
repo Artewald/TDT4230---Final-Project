@@ -142,6 +142,10 @@ vec3 get_random_hemisphere_direction(vec3 normal) {
     return dir * sign(dot(normal, dir));
 }
 
+vec3 get_random_direction() {
+    return vec3(get_random_number(), get_random_number(), get_random_number());
+}
+
 // ==================== Ray functions ====================
 
 IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
@@ -552,9 +556,9 @@ void main() {
         
 
         if (hit.hit) {
-            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            vec3 new_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);
             if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                new_dir = get_random_hemisphere_direction(hit.normal);
+                new_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);
             }
             ray = Ray(hit.point + hit.normal, new_dir);
             hit = voxel_hit(ray);
@@ -563,9 +567,9 @@ void main() {
         }
         
         if (hit.hit) {
-            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            vec3 new_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);
             if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                new_dir = get_random_hemisphere_direction(hit.normal);
+                new_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);
             }
             ray = Ray(hit.point + hit.normal, new_dir);
             hit = voxel_hit(ray);
@@ -574,9 +578,9 @@ void main() {
         }
         
         if (hit.hit) {
-            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            vec3 new_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);
             if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                new_dir = get_random_hemisphere_direction(hit.normal);
+                new_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);
             }
             ray = Ray(hit.point + hit.normal, new_dir);
             hit = voxel_hit(ray);
@@ -585,9 +589,9 @@ void main() {
         }
         
         if (hit.hit) {
-            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            vec3 new_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);
             if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                new_dir = get_random_hemisphere_direction(hit.normal);
+                new_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);
             }
             ray = Ray(hit.point + hit.normal, new_dir);
             hit = voxel_hit(ray);
@@ -596,9 +600,9 @@ void main() {
         }
         
         if (hit.hit) {
-            vec3 new_dir = get_random_hemisphere_direction(hit.normal);
+            vec3 new_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);
             if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                new_dir = get_random_hemisphere_direction(hit.normal);
+                new_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);
             }
             ray = Ray(hit.point + hit.normal, new_dir);
             hit = voxel_hit(ray);
