@@ -34,8 +34,12 @@ pub struct Voxel {
 #[repr(C, align(16))]
 pub struct Material {
     pub color: Vector4<f32>,
+    pub specular_color: Vector4<f32>,
     pub emissive_color: Vector3<f32>,
     pub emissive_strength: f32,
+    pub smoothness: f32,
+    pub specular_probability: f32,
+    pub padding: [f32; 2],
 }
 
 /// # NOTE!
@@ -475,11 +479,15 @@ impl Chunk {
 }
 
 impl Material {
-    pub fn new(color: Vector4<f32>, emissive_color: Vector3<f32>, emissive_strength: f32) -> Self {
+    pub fn new(color: Vector4<f32>, emissive_color: Vector3<f32>, emissive_strength: f32, smoothness: f32, specular_probability: f32, specular_color: Vector4<f32>) -> Self {
         Self {
             color,
             emissive_color,
             emissive_strength,
+            smoothness,
+            specular_probability,
+            specular_color,
+            padding: [0.0, 0.0],
         }
     }
 
@@ -488,6 +496,10 @@ impl Material {
             color: Vector4::new(0.0, 0.0, 0.0, 1.0),
             emissive_color: Vector3::new(0.0, 0.0, 0.0),
             emissive_strength: 0.0,
+            smoothness: 0.0,
+            specular_probability: 0.0,
+            specular_color: Vector4::new(0.0, 0.0, 0.0, 1.0),
+            padding: [0.0, 0.0],
         }
     }
 }

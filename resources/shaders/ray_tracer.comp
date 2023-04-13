@@ -20,8 +20,11 @@ struct VoxelData
 
 struct VoxelMaterial {
     vec4 color;
+    vec4 specular_color;
     vec3 emissive_color;
     float emissive_strength;
+    float smoothness;
+    float specular_probability;
 };
 
 layout(set = 0, binding = 0) readonly buffer Data {
@@ -78,7 +81,7 @@ const vec3 sun_dir = normalize(vec3(-2.0, -1.0, 0.0));
 
 const vec4 fog_color = vec4(0.0, 0.35, 0.7, 1.0);
 
-const VoxelMaterial empty_material = VoxelMaterial(vec4(0.0, 0.0, 0.0, 1.0), vec3(0.0, 0.0, 0.0), 0.0);
+const VoxelMaterial empty_material = VoxelMaterial(vec4(0.0, 0.0, 0.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0);
 
 // ==================== Other variables ====================
 uint rand_num = camera.random_number;
@@ -261,8 +264,9 @@ void main() {
         
         Ray ray = get_primary_ray(x_offset[i], y_offset[i]);
         Hit hit = voxel_hit(ray);
+        bool is_specular_bounce = hit.material.specular_probability >= get_random_number();
         light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
-        color *= hit.material.color;
+        color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
         // For some reason the for-loop stopped working on my laptop, but worked with hard coded if loops, so I will have to hard code them.       
         // for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
         //     if (hit.hit) {

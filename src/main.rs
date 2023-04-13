@@ -14,6 +14,9 @@ fn main() {
 
     let mut green_material = Material::new_default();
     green_material.color = Vector4::new(0.0, 1.0, 0.0, 1.0);
+    green_material.smoothness = 1.0;
+    green_material.specular_color = Vector4::new(1.0, 1.0, 1.0, 1.0);
+    green_material.specular_probability = 0.15;
     let mut red_material = Material::new_default();
     red_material.color = Vector4::new(1.0, 0.0, 0.0, 1.0);
     let mut light_material = Material::new_default();
