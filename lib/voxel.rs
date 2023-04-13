@@ -90,10 +90,8 @@ impl Voxel {
     ) -> MaterialWeight {
         //TODO: Parallellize this function. Can be done in a similar way as the filling function.
         let mut actual_children: Vec<Voxel> = vec![];
-        for child in self.children.clone() {
-            if !child.is_none() {
-                actual_children.push(*child.unwrap());
-            }
+        for child in self.children.clone().into_iter().flatten() {
+            actual_children.push(*child);
         }
 
         // let length = vec2_one_d_lenght(self.range);
@@ -162,18 +160,15 @@ impl Voxel {
         self.material = Material::new_default();
         color_weights.iter().for_each(|material_weight| {
             let percent: f32 = material_weight.weight / total_weight;
-            self.material.color = self.material.color
-                + mul_vector4(
+            self.material.color += mul_vector4(
                     material_weight.material.color,
                     Vector4::new(percent, percent, percent, percent),
                 );
-            self.material.emissive_color = self.material.emissive_color
-                + mul_vector3(
+            self.material.emissive_color += mul_vector3(
                     material_weight.material.emissive_color,
                     Vector3::new(percent, percent, percent),
                 );
-            self.material.emissive_strength = self.material.emissive_strength
-                + material_weight.material.emissive_strength * percent;
+            self.material.emissive_strength += material_weight.material.emissive_strength * percent;
         });
 
         MaterialWeight {
@@ -190,7 +185,7 @@ impl Voxel {
         fill_range: Vector3<Vector2<u32>>,
         material: Material,
     ) {
-        if depth == current_depth {
+        if depth < current_depth {
             self.material = material;
             return;
         }
@@ -498,7 +493,7 @@ impl Material {
             emissive_strength: 0.0,
             smoothness: 0.0,
             specular_probability: 0.0,
-            specular_color: Vector4::new(0.0, 0.0, 0.0, 1.0),
+            specular_color: Vector4::new(1.0, 1.0, 1.0, 1.0),
             padding: [0.0, 0.0],
         }
     }
