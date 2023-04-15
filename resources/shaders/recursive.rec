@@ -2,7 +2,6 @@
 for (int i_NN = 0; i_NN < level_NN.length(); i_NN++) {
     if (level_NN[i_NN] == UINT_MAX) continue;
     temp_voxel = voxel_data.data[level_NN[i_NN]];
-    const uint[8] level_MMM = get_children_indices(temp_voxel);
     intersection_info = slabs(temp_voxel, ray, invRaydir);
     if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
     if (is_leaf_node(temp_voxel)) {
@@ -10,3 +9,4 @@ for (int i_NN = 0; i_NN < level_NN.length(); i_NN++) {
         closest = get_distance(ray, intersection_info);
         continue;
     }
+    const uint[8] level_MMM = get_children_indices(temp_voxel);//get_sorted_children_indices(temp_voxel, ray, invRaydir);//

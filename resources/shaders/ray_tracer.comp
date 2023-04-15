@@ -60,6 +60,7 @@ struct Hit {
     VoxelMaterial material;
     vec3 point;
     vec3 normal;
+    float dist;
 };
 
 struct Ray {
@@ -144,10 +145,16 @@ vec3 get_random_direction() {
 
 // ==================== Ray functions ====================
 
-IntersectionInfo slabs(VoxelData i_voxel, Ray ray, vec3 invertedRayDirection) {
-    const VoxelData voxel = i_voxel;
+IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
     const vec3 boxMin = voxel.pos.xyz;//vec3(voxel.pos_xy, voxel.pos_zw.x);
     const vec3 boxMax = voxel.pos.xyz + voxel.pos.w;//vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
+
+    if (boxMin.x < ray.origin.x && ray.origin.x < boxMax.x && boxMin.y < ray.origin.y && ray.origin.y < boxMax.y && boxMin.z < ray.origin.z && ray.origin.z < boxMax.z) {
+        // Ray origin is inside the box
+        IntersectionInfo info;
+        info.point = ray.origin;
+        return info;
+    }
 
     const vec3 tMin = (boxMin - ray.origin) * invertedRayDirection;
     const vec3 tMax = (boxMax - ray.origin) * invertedRayDirection;
@@ -211,7 +218,7 @@ Hit voxel_hit(Ray ray) {
     Hit ret_val;
     ret_val.hit = false;
     ret_val.material = empty_material; //get_fog_color(ray, IntersectionInfo(vec3(INFINITY_F), vec3(0.0)));
-    float closest = 999999999999999999.0;
+    float closest = 9999999999999999999999999.0;
     const vec3 invRaydir = 1.0/ray.direction;
     
     // GLSL does not allow for recursive functions, thus it needs to be hard-coded
@@ -225,6 +232,7 @@ Hit voxel_hit(Ray ray) {
 
     #pragma unroll
     //RECURSION_MARKER
+    ret_val.dist = closest;
     return ret_val;
 }
 
@@ -271,6 +279,11 @@ void main() {
         //RAY_BOUNCES_MARKER
 
         color_in_the_end += vec4(light, 1.0) * (1.0 / float(AMOUNT_OF_PRIMARY_RAYS));
+        
+        // if (hit.hit) color_in_the_end = vec4(vec3(hit.dist)/100.0, 1.0);
+        // // else color_in_the_end = vec4(1.0);
+        
+        // else color_in_the_end = vec4(ray.origin/100.0, 1.0);
     }
 
     vec4 old_pixel = imageLoad(img_out, IDxy);
