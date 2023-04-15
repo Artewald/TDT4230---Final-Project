@@ -31,7 +31,7 @@ pub struct Voxel {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
-#[repr(C, align(16))]
+#[repr(C, align(4))]
 pub struct Material {
     pub color: Vector4<f32>,
     pub specular_color: Vector4<f32>,
@@ -65,7 +65,7 @@ struct ParallellVoxelData {
 }
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
-#[repr(C)]
+#[repr(C, align(4))]
 pub struct VoxelData {
     // The range value is the pos.w value this is done to not have to add padding multiple places (because of GPU memory alignment issues)
     pub pos: Vector4<f32>,

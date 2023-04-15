@@ -27,15 +27,15 @@ struct VoxelMaterial {
     float specular_probability;
 };
 
-layout(set = 0, binding = 0) readonly buffer Data {
+layout(std430, set = 0, binding = 0) readonly buffer Data {
     VoxelData data[];
 } voxel_data;
 
-layout(set = 0, binding = 1) readonly buffer Materials {
+layout(std430, set = 0, binding = 1) readonly buffer Materials {
     VoxelMaterial data[];
 } voxel_materials;
 
-layout(set = 0, binding = 2)  readonly buffer CameraData {
+layout(std430, set = 0, binding = 2)  readonly buffer CameraData {
     uint field_of_view;
     float render_distance;
     float aspectRatio;
@@ -44,6 +44,8 @@ layout(set = 0, binding = 2)  readonly buffer CameraData {
     vec4 clear_color;
     uint random_number;
     float image_weight;
+    uint frames_since_last_movement;
+    vec3 position;
 } camera;
 
 layout(set = 1, binding = 0, rgba8) uniform image2D img_out;
@@ -69,7 +71,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 5;
+const uint AMOUNT_OF_RAY_BOUNCES = 3;
 
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;
@@ -142,16 +144,17 @@ vec3 get_random_direction() {
 
 // ==================== Ray functions ====================
 
-IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
+IntersectionInfo slabs(VoxelData i_voxel, Ray ray, vec3 invertedRayDirection) {
+    const VoxelData voxel = i_voxel;
     const vec3 boxMin = voxel.pos.xyz;//vec3(voxel.pos_xy, voxel.pos_zw.x);
     const vec3 boxMax = voxel.pos.xyz + voxel.pos.w;//vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
 
-    vec3 tMin = (boxMin - ray.origin) * invertedRayDirection;
-    vec3 tMax = (boxMax - ray.origin) * invertedRayDirection;
-    vec3 t1 = min(tMin, tMax);
-    vec3 t2 = max(tMin, tMax);
-    float tNear = max(max(t1.x, t1.y), t1.z);
-    float tFar = min(min(t2.x, t2.y), t2.z);
+    const vec3 tMin = (boxMin - ray.origin) * invertedRayDirection;
+    const vec3 tMax = (boxMax - ray.origin) * invertedRayDirection;
+    const vec3 t1 = min(tMin, tMax);
+    const vec3 t2 = max(tMin, tMax);
+    const float tNear = max(max(t1.x, t1.y), t1.z);
+    const float tFar = min(min(t2.x, t2.y), t2.z);
 
     IntersectionInfo info;
 
@@ -164,15 +167,9 @@ IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
     // Calculate intersection point and surface normal
     info.point = ray.origin + ray.direction * tNear;
 
-    vec3 normal = vec3(0.0);
-    
-    if (tNear == t1.x) {
-        normal = vec3(-sign(ray.direction.x), 0.0, 0.0);
-    } else if (tNear == t1.y) {
-        normal = vec3(0.0, -sign(ray.direction.y), 0.0);
-    } else {
-        normal = vec3(0.0, 0.0, -sign(ray.direction.z));
-    }
+    vec3 normal = vec3(-sign(ray.direction.x), 0.0, 0.0) * float(tNear == t1.x) 
+                    + vec3(0.0, -sign(ray.direction.y), 0.0) * float(tNear == t1.y) 
+                    + vec3(0.0, 0.0, -sign(ray.direction.z)) * float(tNear != t1.x && tNear != t1.y);
 
     info.normal = normal;
     return info;
@@ -225,6 +222,8 @@ Hit voxel_hit(Ray ray) {
 
     if (is_leaf_node(temp_voxel)) return fill_hit_color(temp_voxel, intersection_info, ray);
     const uint[8] level_0 = get_children_indices(temp_voxel);
+
+    #pragma unroll
     //RECURSION_MARKER
     return ret_val;
 }
@@ -258,6 +257,7 @@ void main() {
     float x_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise();
     float y_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise();
 
+    #pragma unroll
     for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
         vec3 light = vec3(0.0);
         vec4 color = vec4(1.0);
@@ -268,13 +268,6 @@ void main() {
         light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
         color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
         // For some reason the for-loop stopped working on my laptop, but worked with hard coded if loops, so I will have to hard code them.       
-        // for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
-        //     if (hit.hit) {
-        //         ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-        //         hit = voxel_hit(ray);
-        //         color *= hit.color;
-        //     }
-        // }
         //RAY_BOUNCES_MARKER
 
         color_in_the_end += vec4(light, 1.0) * (1.0 / float(AMOUNT_OF_PRIMARY_RAYS));

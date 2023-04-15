@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use nalgebra::{Matrix4, Point3, Vector3, Vector4};
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
-#[repr(C)]
+#[repr(C, align(4))]
 pub struct Camera {
     pub field_of_view: u32,
     pub render_distance: f32,

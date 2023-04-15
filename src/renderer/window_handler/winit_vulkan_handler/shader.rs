@@ -36,15 +36,15 @@ struct VoxelMaterial {
     float specular_probability;
 };
 
-layout(set = 0, binding = 0) readonly buffer Data {
+layout(std430, set = 0, binding = 0) readonly buffer Data {
     VoxelData data[];
 } voxel_data;
 
-layout(set = 0, binding = 1) readonly buffer Materials {
+layout(std430, set = 0, binding = 1) readonly buffer Materials {
     VoxelMaterial data[];
 } voxel_materials;
 
-layout(set = 0, binding = 2)  readonly buffer CameraData {
+layout(std430, set = 0, binding = 2)  readonly buffer CameraData {
     uint field_of_view;
     float render_distance;
     float aspectRatio;
@@ -53,6 +53,8 @@ layout(set = 0, binding = 2)  readonly buffer CameraData {
     vec4 clear_color;
     uint random_number;
     float image_weight;
+    uint frames_since_last_movement;
+    vec3 position;
 } camera;
 
 layout(set = 1, binding = 0, rgba8) uniform image2D img_out;
@@ -78,7 +80,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 5;
+const uint AMOUNT_OF_RAY_BOUNCES = 3;
 
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;
@@ -151,16 +153,17 @@ vec3 get_random_direction() {
 
 // ==================== Ray functions ====================
 
-IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
+IntersectionInfo slabs(VoxelData i_voxel, Ray ray, vec3 invertedRayDirection) {
+    const VoxelData voxel = i_voxel;
     const vec3 boxMin = voxel.pos.xyz;//vec3(voxel.pos_xy, voxel.pos_zw.x);
     const vec3 boxMax = voxel.pos.xyz + voxel.pos.w;//vec3(voxel.pos_xy.x + voxel.pos_zw.y, voxel.pos_xy.y + voxel.pos_zw.y, voxel.pos_zw.x + voxel.pos_zw.y);
 
-    vec3 tMin = (boxMin - ray.origin) * invertedRayDirection;
-    vec3 tMax = (boxMax - ray.origin) * invertedRayDirection;
-    vec3 t1 = min(tMin, tMax);
-    vec3 t2 = max(tMin, tMax);
-    float tNear = max(max(t1.x, t1.y), t1.z);
-    float tFar = min(min(t2.x, t2.y), t2.z);
+    const vec3 tMin = (boxMin - ray.origin) * invertedRayDirection;
+    const vec3 tMax = (boxMax - ray.origin) * invertedRayDirection;
+    const vec3 t1 = min(tMin, tMax);
+    const vec3 t2 = max(tMin, tMax);
+    const float tNear = max(max(t1.x, t1.y), t1.z);
+    const float tFar = min(min(t2.x, t2.y), t2.z);
 
     IntersectionInfo info;
 
@@ -173,15 +176,9 @@ IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
     // Calculate intersection point and surface normal
     info.point = ray.origin + ray.direction * tNear;
 
-    vec3 normal = vec3(0.0);
-    
-    if (tNear == t1.x) {
-        normal = vec3(-sign(ray.direction.x), 0.0, 0.0);
-    } else if (tNear == t1.y) {
-        normal = vec3(0.0, -sign(ray.direction.y), 0.0);
-    } else {
-        normal = vec3(0.0, 0.0, -sign(ray.direction.z));
-    }
+    vec3 normal = vec3(-sign(ray.direction.x), 0.0, 0.0) * float(tNear == t1.x) 
+                    + vec3(0.0, -sign(ray.direction.y), 0.0) * float(tNear == t1.y) 
+                    + vec3(0.0, 0.0, -sign(ray.direction.z)) * float(tNear != t1.x && tNear != t1.y);
 
     info.normal = normal;
     return info;
@@ -234,262 +231,196 @@ Hit voxel_hit(Ray ray) {
 
     if (is_leaf_node(temp_voxel)) return fill_hit_color(temp_voxel, intersection_info, ray);
     const uint[8] level_0 = get_children_indices(temp_voxel);
+
+    #pragma unroll
     
     for (int i_0 = 0; i_0 < level_0.length(); i_0++) {
         if (level_0[i_0] == UINT_MAX) continue;
         temp_voxel = voxel_data.data[level_0[i_0]];
-        const uint[8] level_1 = get_children_indices(temp_voxel);
         intersection_info = slabs(temp_voxel, ray, invRaydir);
         if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
         if (is_leaf_node(temp_voxel)) {
-            //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-            //ret_val.point = intersection_info.point;
-            //ret_val.normal = intersection_info.normal;
-            //ret_val.hit = true;
             ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
             closest = get_distance(ray, intersection_info);
             continue;
         }
+        const uint[8] level_1 = get_children_indices(temp_voxel);
         for (int i_1 = 0; i_1 < level_1.length(); i_1++) {
             if (level_1[i_1] == UINT_MAX) continue;
             temp_voxel = voxel_data.data[level_1[i_1]];
-            const uint[8] level_2 = get_children_indices(temp_voxel);
             intersection_info = slabs(temp_voxel, ray, invRaydir);
             if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
             if (is_leaf_node(temp_voxel)) {
-                //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                //ret_val.point = intersection_info.point;
-                //ret_val.normal = intersection_info.normal;
-                //ret_val.hit = true;
                 ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                 closest = get_distance(ray, intersection_info);
                 continue;
             }
+            const uint[8] level_2 = get_children_indices(temp_voxel);
             for (int i_2 = 0; i_2 < level_2.length(); i_2++) {
                 if (level_2[i_2] == UINT_MAX) continue;
                 temp_voxel = voxel_data.data[level_2[i_2]];
-                const uint[8] level_3 = get_children_indices(temp_voxel);
                 intersection_info = slabs(temp_voxel, ray, invRaydir);
                 if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                 if (is_leaf_node(temp_voxel)) {
-                    //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                    //ret_val.point = intersection_info.point;
-                    //ret_val.normal = intersection_info.normal;
-                    //ret_val.hit = true;
                     ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                     closest = get_distance(ray, intersection_info);
                     continue;
                 }
+                const uint[8] level_3 = get_children_indices(temp_voxel);
                 for (int i_3 = 0; i_3 < level_3.length(); i_3++) {
                     if (level_3[i_3] == UINT_MAX) continue;
                     temp_voxel = voxel_data.data[level_3[i_3]];
-                    const uint[8] level_4 = get_children_indices(temp_voxel);
                     intersection_info = slabs(temp_voxel, ray, invRaydir);
                     if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                     if (is_leaf_node(temp_voxel)) {
-                        //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                        //ret_val.point = intersection_info.point;
-                        //ret_val.normal = intersection_info.normal;
-                        //ret_val.hit = true;
                         ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                         closest = get_distance(ray, intersection_info);
                         continue;
                     }
+                    const uint[8] level_4 = get_children_indices(temp_voxel);
                     for (int i_4 = 0; i_4 < level_4.length(); i_4++) {
                         if (level_4[i_4] == UINT_MAX) continue;
                         temp_voxel = voxel_data.data[level_4[i_4]];
-                        const uint[8] level_5 = get_children_indices(temp_voxel);
                         intersection_info = slabs(temp_voxel, ray, invRaydir);
                         if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                         if (is_leaf_node(temp_voxel)) {
-                            //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                            //ret_val.point = intersection_info.point;
-                            //ret_val.normal = intersection_info.normal;
-                            //ret_val.hit = true;
                             ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                             closest = get_distance(ray, intersection_info);
                             continue;
                         }
+                        const uint[8] level_5 = get_children_indices(temp_voxel);
                         for (int i_5 = 0; i_5 < level_5.length(); i_5++) {
                             if (level_5[i_5] == UINT_MAX) continue;
                             temp_voxel = voxel_data.data[level_5[i_5]];
-                            const uint[8] level_6 = get_children_indices(temp_voxel);
                             intersection_info = slabs(temp_voxel, ray, invRaydir);
                             if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                             if (is_leaf_node(temp_voxel)) {
-                                //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                //ret_val.point = intersection_info.point;
-                                //ret_val.normal = intersection_info.normal;
-                                //ret_val.hit = true;
                                 ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                 closest = get_distance(ray, intersection_info);
                                 continue;
                             }
+                            const uint[8] level_6 = get_children_indices(temp_voxel);
                             for (int i_6 = 0; i_6 < level_6.length(); i_6++) {
                                 if (level_6[i_6] == UINT_MAX) continue;
                                 temp_voxel = voxel_data.data[level_6[i_6]];
-                                const uint[8] level_7 = get_children_indices(temp_voxel);
                                 intersection_info = slabs(temp_voxel, ray, invRaydir);
                                 if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                 if (is_leaf_node(temp_voxel)) {
-                                    //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                    //ret_val.point = intersection_info.point;
-                                    //ret_val.normal = intersection_info.normal;
-                                    //ret_val.hit = true;
                                     ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                     closest = get_distance(ray, intersection_info);
                                     continue;
                                 }
+                                const uint[8] level_7 = get_children_indices(temp_voxel);
                                 for (int i_7 = 0; i_7 < level_7.length(); i_7++) {
                                     if (level_7[i_7] == UINT_MAX) continue;
                                     temp_voxel = voxel_data.data[level_7[i_7]];
-                                    const uint[8] level_8 = get_children_indices(temp_voxel);
                                     intersection_info = slabs(temp_voxel, ray, invRaydir);
                                     if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                     if (is_leaf_node(temp_voxel)) {
-                                        //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                        //ret_val.point = intersection_info.point;
-                                        //ret_val.normal = intersection_info.normal;
-                                        //ret_val.hit = true;
                                         ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                         closest = get_distance(ray, intersection_info);
                                         continue;
                                     }
+                                    const uint[8] level_8 = get_children_indices(temp_voxel);
                                     for (int i_8 = 0; i_8 < level_8.length(); i_8++) {
                                         if (level_8[i_8] == UINT_MAX) continue;
                                         temp_voxel = voxel_data.data[level_8[i_8]];
-                                        const uint[8] level_9 = get_children_indices(temp_voxel);
                                         intersection_info = slabs(temp_voxel, ray, invRaydir);
                                         if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                         if (is_leaf_node(temp_voxel)) {
-                                            //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                            //ret_val.point = intersection_info.point;
-                                            //ret_val.normal = intersection_info.normal;
-                                            //ret_val.hit = true;
                                             ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                             closest = get_distance(ray, intersection_info);
                                             continue;
                                         }
+                                        const uint[8] level_9 = get_children_indices(temp_voxel);
                                         for (int i_9 = 0; i_9 < level_9.length(); i_9++) {
                                             if (level_9[i_9] == UINT_MAX) continue;
                                             temp_voxel = voxel_data.data[level_9[i_9]];
-                                            const uint[8] level_10 = get_children_indices(temp_voxel);
                                             intersection_info = slabs(temp_voxel, ray, invRaydir);
                                             if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                             if (is_leaf_node(temp_voxel)) {
-                                                //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                                //ret_val.point = intersection_info.point;
-                                                //ret_val.normal = intersection_info.normal;
-                                                //ret_val.hit = true;
                                                 ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                                 closest = get_distance(ray, intersection_info);
                                                 continue;
                                             }
+                                            const uint[8] level_10 = get_children_indices(temp_voxel);
                                             for (int i_10 = 0; i_10 < level_10.length(); i_10++) {
                                                 if (level_10[i_10] == UINT_MAX) continue;
                                                 temp_voxel = voxel_data.data[level_10[i_10]];
-                                                const uint[8] level_11 = get_children_indices(temp_voxel);
                                                 intersection_info = slabs(temp_voxel, ray, invRaydir);
                                                 if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                                 if (is_leaf_node(temp_voxel)) {
-                                                    //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                                    //ret_val.point = intersection_info.point;
-                                                    //ret_val.normal = intersection_info.normal;
-                                                    //ret_val.hit = true;
                                                     ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                                     closest = get_distance(ray, intersection_info);
                                                     continue;
                                                 }
+                                                const uint[8] level_11 = get_children_indices(temp_voxel);
                                                 for (int i_11 = 0; i_11 < level_11.length(); i_11++) {
                                                     if (level_11[i_11] == UINT_MAX) continue;
                                                     temp_voxel = voxel_data.data[level_11[i_11]];
-                                                    const uint[8] level_12 = get_children_indices(temp_voxel);
                                                     intersection_info = slabs(temp_voxel, ray, invRaydir);
                                                     if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                                     if (is_leaf_node(temp_voxel)) {
-                                                        //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                                        //ret_val.point = intersection_info.point;
-                                                        //ret_val.normal = intersection_info.normal;
-                                                        //ret_val.hit = true;
                                                         ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                                         closest = get_distance(ray, intersection_info);
                                                         continue;
                                                     }
+                                                    const uint[8] level_12 = get_children_indices(temp_voxel);
                                                     for (int i_12 = 0; i_12 < level_12.length(); i_12++) {
                                                         if (level_12[i_12] == UINT_MAX) continue;
                                                         temp_voxel = voxel_data.data[level_12[i_12]];
-                                                        const uint[8] level_13 = get_children_indices(temp_voxel);
                                                         intersection_info = slabs(temp_voxel, ray, invRaydir);
                                                         if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                                         if (is_leaf_node(temp_voxel)) {
-                                                            //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                                            //ret_val.point = intersection_info.point;
-                                                            //ret_val.normal = intersection_info.normal;
-                                                            //ret_val.hit = true;
                                                             ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                                             closest = get_distance(ray, intersection_info);
                                                             continue;
                                                         }
+                                                        const uint[8] level_13 = get_children_indices(temp_voxel);
                                                         for (int i_13 = 0; i_13 < level_13.length(); i_13++) {
                                                             if (level_13[i_13] == UINT_MAX) continue;
                                                             temp_voxel = voxel_data.data[level_13[i_13]];
-                                                            const uint[8] level_14 = get_children_indices(temp_voxel);
                                                             intersection_info = slabs(temp_voxel, ray, invRaydir);
                                                             if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                                             if (is_leaf_node(temp_voxel)) {
-                                                                //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                                                //ret_val.point = intersection_info.point;
-                                                                //ret_val.normal = intersection_info.normal;
-                                                                //ret_val.hit = true;
                                                                 ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                                                 closest = get_distance(ray, intersection_info);
                                                                 continue;
                                                             }
+                                                            const uint[8] level_14 = get_children_indices(temp_voxel);
                                                             for (int i_14 = 0; i_14 < level_14.length(); i_14++) {
                                                                 if (level_14[i_14] == UINT_MAX) continue;
                                                                 temp_voxel = voxel_data.data[level_14[i_14]];
-                                                                const uint[8] level_15 = get_children_indices(temp_voxel);
                                                                 intersection_info = slabs(temp_voxel, ray, invRaydir);
                                                                 if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                                                 if (is_leaf_node(temp_voxel)) {
-                                                                    //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                                                    //ret_val.point = intersection_info.point;
-                                                                    //ret_val.normal = intersection_info.normal;
-                                                                    //ret_val.hit = true;
                                                                     ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                                                     closest = get_distance(ray, intersection_info);
                                                                     continue;
                                                                 }
+                                                                const uint[8] level_15 = get_children_indices(temp_voxel);
                                                                 for (int i_15 = 0; i_15 < level_15.length(); i_15++) {
                                                                     if (level_15[i_15] == UINT_MAX) continue;
                                                                     temp_voxel = voxel_data.data[level_15[i_15]];
-                                                                    const uint[8] level_16 = get_children_indices(temp_voxel);
                                                                     intersection_info = slabs(temp_voxel, ray, invRaydir);
                                                                     if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                                                     if (is_leaf_node(temp_voxel)) {
-                                                                        //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                                                        //ret_val.point = intersection_info.point;
-                                                                        //ret_val.normal = intersection_info.normal;
-                                                                        //ret_val.hit = true;
                                                                         ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                                                         closest = get_distance(ray, intersection_info);
                                                                         continue;
                                                                     }
+                                                                    const uint[8] level_16 = get_children_indices(temp_voxel);
                                                                     for (int i_16 = 0; i_16 < level_16.length(); i_16++) {
                                                                         if (level_16[i_16] == UINT_MAX) continue;
                                                                         temp_voxel = voxel_data.data[level_16[i_16]];
-                                                                        const uint[8] level_17 = get_children_indices(temp_voxel);
                                                                         intersection_info = slabs(temp_voxel, ray, invRaydir);
                                                                         if (intersection_info.point == vec3(INFINITY_F) || !is_closer(ray, intersection_info, closest)) continue;
                                                                         if (is_leaf_node(temp_voxel)) {
-                                                                            //ret_val.color = vec4(temp_voxel.color_rg, temp_voxel.color_ba);
-                                                                            //ret_val.point = intersection_info.point;
-                                                                            //ret_val.normal = intersection_info.normal;
-                                                                            //ret_val.hit = true;
                                                                             ret_val = fill_hit_color(temp_voxel, intersection_info, ray);
                                                                             closest = get_distance(ray, intersection_info);
                                                                             continue;
                                                                         }
+                                                                        const uint[8] level_17 = get_children_indices(temp_voxel);
                                                                     }
                                                                 }
                                                             }
@@ -540,6 +471,7 @@ void main() {
     float x_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise();
     float y_offset[AMOUNT_OF_PRIMARY_RAYS] = get_random_noise();
 
+    #pragma unroll
     for (int i = 0; i < AMOUNT_OF_PRIMARY_RAYS; i++) {
         vec3 light = vec3(0.0);
         vec4 color = vec4(1.0);
@@ -550,45 +482,8 @@ void main() {
         light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
         color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
         // For some reason the for-loop stopped working on my laptop, but worked with hard coded if loops, so I will have to hard code them.       
-        // for (int j = 0; j < AMOUNT_OF_RAY_BOUNCES; j++) {
-        //     if (hit.hit) {
-        //         ray = Ray(hit.point + hit.normal, reflect(ray.direction, hit.normal));
-        //         hit = voxel_hit(ray);
-        //         color *= hit.color;
-        //     }
-        // }
         
 
-        if (hit.hit) {
-            vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);
-            vec3 spec_dir = reflect(ray.direction, hit.normal);
-            is_specular_bounce = hit.material.specular_probability >= get_random_number();
-            vec3 new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness * float(uint(is_specular_bounce)));
-            if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                diffuse_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);
-                new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness);
-            }
-            ray = Ray(hit.point + hit.normal, new_dir);
-            hit = voxel_hit(ray);
-            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
-            color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
-        }
-        
-        if (hit.hit) {
-            vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);
-            vec3 spec_dir = reflect(ray.direction, hit.normal);
-            is_specular_bounce = hit.material.specular_probability >= get_random_number();
-            vec3 new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness * float(uint(is_specular_bounce)));
-            if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                diffuse_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);
-                new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness);
-            }
-            ray = Ray(hit.point + hit.normal, new_dir);
-            hit = voxel_hit(ray);
-            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
-            color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
-        }
-        
         if (hit.hit) {
             vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);
             vec3 spec_dir = reflect(ray.direction, hit.normal);
