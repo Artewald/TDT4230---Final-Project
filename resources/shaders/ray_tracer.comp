@@ -71,7 +71,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 3;
+const uint AMOUNT_OF_RAY_BOUNCES = 5;
 
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;

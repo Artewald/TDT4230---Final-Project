@@ -10,6 +10,8 @@ use renderer::setup_renderer_and_run;
 use scene_creator::{create_simple_scene, create_complex_scene};
 use voxel::Chunk;
 
+use crate::scene_creator::create_mirror_scene;
+
 mod renderer;
 mod scene_creator;
 
@@ -22,7 +24,8 @@ fn main() {
     // Just so that it's clear creating the scene does not necessarily mean that the chunk is filled with voxels, it's just a way to get the data.
     // If the scene is already stored in a file, it will be loaded from there.
     // let (mut voxel_data, materials) = create_simple_scene(&mut chunk, thread_pool);
-    let (mut voxel_data, materials) = create_complex_scene(&mut chunk, thread_pool);
+    // let (mut voxel_data, materials) = create_complex_scene(&mut chunk, thread_pool);
+    let (mut voxel_data, materials) = create_mirror_scene(&mut chunk, thread_pool);
     println!(
         "Time to create scene: {}ms",
         current_time.elapsed().as_millis()
