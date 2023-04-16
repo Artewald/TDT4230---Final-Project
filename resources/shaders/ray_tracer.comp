@@ -140,7 +140,7 @@ vec3 get_random_hemisphere_direction(vec3 normal) {
 }
 
 vec3 get_random_direction() {
-    return vec3(get_random_number(), get_random_number(), get_random_number());
+    return normalize(vec3((get_random_number()-0.5)*2, (get_random_number()-0.5)*2, (get_random_number()-0.5)*2));
 }
 
 // ==================== Ray functions ====================

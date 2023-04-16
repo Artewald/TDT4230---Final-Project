@@ -9,4 +9,4 @@ for (int i_NN = 0; i_NN < level_NN.length(); i_NN++) {
         closest = get_distance(ray, intersection_info);
         continue;
     }
-    const uint[8] level_MMM = get_children_indices(temp_voxel);//get_sorted_children_indices(temp_voxel, ray, invRaydir);//
+    const uint[8] level_MMM = get_children_indices(temp_voxel);
