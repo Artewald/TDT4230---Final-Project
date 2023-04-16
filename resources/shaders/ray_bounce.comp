@@ -1,5 +1,5 @@
 
-if (hit.hit) {
+if (hit.hit && hit.material.emissive_strength <= 0.0) {
     vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);//
     vec3 spec_dir = reflect(ray.direction, hit.normal);
     is_specular_bounce = hit.material.specular_probability >= get_random_number();
@@ -16,7 +16,8 @@ if (hit.hit) {
     float r = max(color.x, max(color.y, color.z));
     if (get_random_number() >= r) {
         hit.hit = false;
-    } else {
+    } 
+    else {
         color *= 1.0/r;
     }
 }

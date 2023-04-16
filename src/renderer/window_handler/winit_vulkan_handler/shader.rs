@@ -81,7 +81,7 @@ struct Ray {
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
 const uint AMOUNT_OF_PRIMARY_RAYS = 1;
-const uint AMOUNT_OF_RAY_BOUNCES = 5;
+const uint AMOUNT_OF_RAY_BOUNCES = 2;
 
 const float ATMOSPHERE_HEIGHT = 100*1000;
 const float HORIZON_DISTANCE = 1000*1000;
@@ -492,7 +492,7 @@ void main() {
         // For some reason the for-loop stopped working on my laptop, but worked with hard coded if loops, so I will have to hard code them.       
         
 
-        if (hit.hit) {
+        if (hit.hit && hit.material.emissive_strength <= 0.0) {
             vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);//
             vec3 spec_dir = reflect(ray.direction, hit.normal);
             is_specular_bounce = hit.material.specular_probability >= get_random_number();
@@ -509,12 +509,13 @@ void main() {
             float r = max(color.x, max(color.y, color.z));
             if (get_random_number() >= r) {
                 hit.hit = false;
-            } else {
+            } 
+            else {
                 color *= 1.0/r;
             }
         }
         
-        if (hit.hit) {
+        if (hit.hit && hit.material.emissive_strength <= 0.0) {
             vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);//
             vec3 spec_dir = reflect(ray.direction, hit.normal);
             is_specular_bounce = hit.material.specular_probability >= get_random_number();
@@ -531,73 +532,8 @@ void main() {
             float r = max(color.x, max(color.y, color.z));
             if (get_random_number() >= r) {
                 hit.hit = false;
-            } else {
-                color *= 1.0/r;
-            }
-        }
-        
-        if (hit.hit) {
-            vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);//
-            vec3 spec_dir = reflect(ray.direction, hit.normal);
-            is_specular_bounce = hit.material.specular_probability >= get_random_number();
-            vec3 new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness * float(uint(is_specular_bounce)));
-            if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                diffuse_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);//
-                new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness);
-            }
-            ray = Ray(hit.point + hit.normal, new_dir);
-            hit = voxel_hit(ray);
-            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
-            color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
-        
-            float r = max(color.x, max(color.y, color.z));
-            if (get_random_number() >= r) {
-                hit.hit = false;
-            } else {
-                color *= 1.0/r;
-            }
-        }
-        
-        if (hit.hit) {
-            vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);//
-            vec3 spec_dir = reflect(ray.direction, hit.normal);
-            is_specular_bounce = hit.material.specular_probability >= get_random_number();
-            vec3 new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness * float(uint(is_specular_bounce)));
-            if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                diffuse_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);//
-                new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness);
-            }
-            ray = Ray(hit.point + hit.normal, new_dir);
-            hit = voxel_hit(ray);
-            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
-            color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
-        
-            float r = max(color.x, max(color.y, color.z));
-            if (get_random_number() >= r) {
-                hit.hit = false;
-            } else {
-                color *= 1.0/r;
-            }
-        }
-        
-        if (hit.hit) {
-            vec3 diffuse_dir = normalize(hit.normal + get_random_direction());//get_random_hemisphere_direction(hit.normal);//
-            vec3 spec_dir = reflect(ray.direction, hit.normal);
-            is_specular_bounce = hit.material.specular_probability >= get_random_number();
-            vec3 new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness * float(uint(is_specular_bounce)));
-            if (new_dir == vec3(0.0, 0.0, 0.0)) {
-                diffuse_dir = normalize(hit.normal + get_random_direction() + 1);//get_random_hemisphere_direction(hit.normal);//
-                new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness);
-            }
-            ray = Ray(hit.point + hit.normal, new_dir);
-            hit = voxel_hit(ray);
-            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
-            color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
-        
-            float r = max(color.x, max(color.y, color.z));
-            if (get_random_number() >= r) {
-                hit.hit = false;
-            } else {
+            } 
+            else {
                 color *= 1.0/r;
             }
         }

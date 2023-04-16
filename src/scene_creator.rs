@@ -10,6 +10,7 @@ mod scene_saver;
 const SIMPLE_SCENE_NAME: &str = "simple";
 const COMPLEX_SCENE_NAME: &str = "complex";
 const MIRROR_SCENE_NAME: &str = "mirror";
+const NEON_MIRROR_MAZE_NAME: &str = "neon_mirror_maze";
 
 fn get_voxels(chunk: &mut Chunk) -> (Vec<VoxelData>, Vec<Material>) {
 	chunk.get_oct_tree(
@@ -18,9 +19,9 @@ fn get_voxels(chunk: &mut Chunk) -> (Vec<VoxelData>, Vec<Material>) {
 	)
 }
 
-pub fn create_simple_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPoolHelper>>) -> (Vec<VoxelData>, Vec<Material>) {
+pub fn create_simple_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPoolHelper>>, recreate: bool) -> (Vec<VoxelData>, Vec<Material>) {
 
-	if does_scene_exist(SIMPLE_SCENE_NAME) {
+	if does_scene_exist(SIMPLE_SCENE_NAME) && !recreate {
 		let (voxels, materials) = load_voxel_data_from_file(SIMPLE_SCENE_NAME);
 		return (voxels, materials);
 	}
@@ -61,8 +62,8 @@ pub fn create_simple_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPool
 	(voxels, materials)
 }
 
-pub fn create_mirror_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPoolHelper>>) -> (Vec<VoxelData>, Vec<Material>) {
-	if does_scene_exist(MIRROR_SCENE_NAME) {
+pub fn create_mirror_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPoolHelper>>, recreate: bool) -> (Vec<VoxelData>, Vec<Material>) {
+	if does_scene_exist(MIRROR_SCENE_NAME) && !recreate {
 		let (voxels, materials) = load_voxel_data_from_file(MIRROR_SCENE_NAME);
 		return (voxels, materials);
 	}
@@ -109,8 +110,215 @@ pub fn create_mirror_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPool
 	(voxels, materials)
 }
 
-pub fn create_complex_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPoolHelper>>) -> (Vec<VoxelData>, Vec<Material>) {
-	if does_scene_exist(COMPLEX_SCENE_NAME) {
+pub fn create_neon_mirror_maze_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPoolHelper>>, recreate: bool) -> (Vec<VoxelData>, Vec<Material>) {
+
+	if does_scene_exist(NEON_MIRROR_MAZE_NAME) && !recreate {
+		let (voxels, materials) = load_voxel_data_from_file(NEON_MIRROR_MAZE_NAME);
+		return (voxels, materials);
+	}
+
+	//========================= Materials =========================
+	let mat_0 = Material::new(Vector4::new(0.25, 0.25, 0.25, 1.0), Vector3::new(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, Vector4::new(0.25, 0.25, 0.25, 1.0));
+	let mat_1 = Material::new(Vector4::new(0.0, 0.0, 0.0, 1.0), Vector3::new(0.8203125, 0.15234375, 0.1875), 0.99609375, 0.0, 0.0, Vector4::new(0.8203125, 0.15234375, 0.1875, 1.0));
+	let mat_2 = Material::new(Vector4::new(0.0, 0.0, 0.0, 1.0), Vector3::new(0.875, 0.90234375, 0.1328125), 0.99609375, 0.0, 0.0, Vector4::new(0.875, 0.90234375, 0.1328125, 1.0));
+	let mat_3 = Material::new(Vector4::new(0.0, 0.0, 0.0, 1.0), Vector3::new(0.99609375, 0.67578125, 0.0), 0.99609375, 0.0, 0.0, Vector4::new(0.99609375, 0.67578125, 0.0, 1.0));
+	let mat_4 = Material::new(Vector4::new(0.0, 0.0, 0.0, 1.0), Vector3::new(0.87890625, 0.234375, 0.6875), 0.99609375, 0.0, 0.0, Vector4::new(0.87890625, 0.234375, 0.6875, 1.0));
+	let mat_5 = Material::new(Vector4::new(0.0, 0.0, 0.0, 1.0), Vector3::new(0.265625, 0.8359375, 0.171875), 0.99609375, 0.0, 0.0, Vector4::new(0.265625, 0.8359375, 0.171875, 1.0));
+	let mat_6 = Material::new(Vector4::new(0.0, 0.0, 0.0, 1.0), Vector3::new(0.30078125, 0.30078125, 0.99609375), 0.99609375, 0.0, 0.0, Vector4::new(0.30078125, 0.30078125, 0.99609375, 1.0));
+	let mat_7 = Material::new(Vector4::new(0.0, 0.0, 0.0, 1.0), Vector3::new(0.77734375, 0.140625, 0.69140625), 0.99609375, 0.0, 0.0, Vector4::new(0.77734375, 0.140625, 0.69140625, 1.0));
+	let mat_8 = Material::new(Vector4::new(0.99609375, 0.99609375, 0.99609375, 1.0), Vector3::new(0.0, 0.0, 0.0), 0.0, 0.99609375, 0.9453125, Vector4::new(0.99609375, 0.99609375, 0.99609375, 1.0));
+
+	//========================= Voxels =========================
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(20, 30), Vector2::new(1, 2), Vector2::new(39, 40)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(21, 22), Vector2::new(1, 2), Vector2::new(25, 37)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(29, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 17), Vector2::new(1, 2), Vector2::new(37, 43)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 27), Vector2::new(6, 7), Vector2::new(20, 25)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(23, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(14, 15), Vector2::new(6, 7), Vector2::new(27, 37)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(9, 11), Vector2::new(6, 7), Vector2::new(29, 30)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 22), Vector2::new(6, 7), Vector2::new(36, 37)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(17, 33), Vector2::new(1, 2), Vector2::new(42, 43)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(29, 30), Vector2::new(6, 7), Vector2::new(29, 39)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(8, 22), Vector2::new(1, 2), Vector2::new(21, 22)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 27), Vector2::new(2, 6), Vector2::new(28, 29)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(24, 26), Vector2::new(6, 7), Vector2::new(28, 29)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(27, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(28, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(8, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(34, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(27, 37), Vector2::new(2, 6), Vector2::new(20, 21)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(9, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(29, 30), Vector2::new(2, 6), Vector2::new(28, 29)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(27, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(14, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(20, 30), Vector2::new(6, 7), Vector2::new(39, 40)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 11), Vector2::new(2, 6), Vector2::new(36, 37)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(23, 29), Vector2::new(2, 6), Vector2::new(38, 39)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 19), Vector2::new(6, 7), Vector2::new(33, 34)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(8, 22), Vector2::new(6, 7), Vector2::new(21, 22)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(25, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(8, 9), Vector2::new(1, 2), Vector2::new(22, 30)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 33), Vector2::new(1, 2), Vector2::new(26, 39)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(35, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(36, 37), Vector2::new(2, 6), Vector2::new(16, 17)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 22), Vector2::new(1, 2), Vector2::new(36, 37)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(23, 24), Vector2::new(6, 7), Vector2::new(17, 29)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 17), Vector2::new(2, 6), Vector2::new(37, 38)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(14, 15), Vector2::new(1, 2), Vector2::new(27, 37)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(10, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(33, 34), Vector2::new(2, 6), Vector2::new(25, 44)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 17), Vector2::new(2, 6), Vector2::new(36, 37)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 6), Vector2::new(2, 6), Vector2::new(37, 38)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(29, 30), Vector2::new(2, 6), Vector2::new(38, 39)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 34), Vector2::new(2, 6), Vector2::new(43, 44)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(6, 7), Vector2::new(25, 26)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(8, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(14, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 20), Vector2::new(1, 2), Vector2::new(37, 40)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(15, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(8, 9), Vector2::new(6, 7), Vector2::new(22, 30)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(29, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(30, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 17), Vector2::new(1, 2), Vector2::new(34, 37)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(6, 7), Vector2::new(29, 37)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(33, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 15), Vector2::new(6, 7), Vector2::new(26, 27)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(18, 19), Vector2::new(2, 6), Vector2::new(33, 34)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 17), Vector2::new(6, 7), Vector2::new(37, 43)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(2, 6), Vector2::new(26, 27)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 20), Vector2::new(2, 6), Vector2::new(37, 38)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 37), Vector2::new(0, 1), Vector2::new(15, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(15, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 33), Vector2::new(6, 7), Vector2::new(25, 26)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(12, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 15), Vector2::new(1, 2), Vector2::new(40, 41)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(20, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(7, 8), Vector2::new(2, 6), Vector2::new(21, 31)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 19), Vector2::new(1, 2), Vector2::new(33, 34)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(10, 11), Vector2::new(2, 6), Vector2::new(31, 37)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(7, 23), Vector2::new(2, 6), Vector2::new(20, 21)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 20), Vector2::new(2, 6), Vector2::new(36, 37)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(33, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(24, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 16), Vector2::new(2, 6), Vector2::new(41, 42)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(13, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 27), Vector2::new(2, 6), Vector2::new(19, 20)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(28, 29), Vector2::new(2, 6), Vector2::new(30, 39)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(14, 15), Vector2::new(6, 7), Vector2::new(37, 41)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(29, 30), Vector2::new(2, 6), Vector2::new(39, 40)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(23, 37), Vector2::new(6, 7), Vector2::new(16, 17)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 33), Vector2::new(6, 7), Vector2::new(39, 43)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(9, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(34, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(1, 2), Vector2::new(25, 26)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 15), Vector2::new(1, 2), Vector2::new(26, 27)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 37), Vector2::new(1, 2), Vector2::new(19, 20)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(28, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 27), Vector2::new(1, 2), Vector2::new(20, 25)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(25, 26), Vector2::new(2, 6), Vector2::new(28, 29)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(21, 22), Vector2::new(6, 7), Vector2::new(22, 25)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(22, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(24, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(6, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(36, 37), Vector2::new(2, 6), Vector2::new(19, 20)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(36, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 18), Vector2::new(2, 6), Vector2::new(32, 33)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 12), Vector2::new(1, 2), Vector2::new(37, 38)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(21, 22), Vector2::new(2, 6), Vector2::new(24, 25)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 6), Vector2::new(2, 6), Vector2::new(40, 41)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(25, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(9, 11), Vector2::new(1, 2), Vector2::new(29, 30)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(7, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 12), Vector2::new(6, 7), Vector2::new(37, 38)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(17, 33), Vector2::new(6, 7), Vector2::new(42, 43)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(14, 15), Vector2::new(2, 6), Vector2::new(36, 37)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(14, 15), Vector2::new(2, 6), Vector2::new(37, 38)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(10, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(21, 22), Vector2::new(1, 2), Vector2::new(22, 25)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(18, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(28, 34), Vector2::new(2, 6), Vector2::new(24, 25)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(2, 6), Vector2::new(36, 37)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(31, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(29, 30), Vector2::new(1, 2), Vector2::new(29, 39)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(23, 37), Vector2::new(1, 2), Vector2::new(16, 17)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 33), Vector2::new(2, 6), Vector2::new(42, 43)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 33), Vector2::new(1, 2), Vector2::new(25, 26)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(1, 2), Vector2::new(29, 37)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(18, 19), Vector2::new(6, 7), Vector2::new(25, 34)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(17, 18), Vector2::new(2, 6), Vector2::new(26, 33)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 30), Vector2::new(6, 7), Vector2::new(28, 29)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(22, 23), Vector2::new(2, 6), Vector2::new(16, 39)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(6, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(18, 19), Vector2::new(1, 2), Vector2::new(25, 34)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(16, 17), Vector2::new(6, 7), Vector2::new(34, 37)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(12, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(18, 19), Vector2::new(2, 6), Vector2::new(25, 26)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(23, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(22, 37), Vector2::new(2, 6), Vector2::new(15, 16)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(10, 11), Vector2::new(2, 6), Vector2::new(29, 30)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 33), Vector2::new(6, 7), Vector2::new(26, 39)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(21, 22), Vector2::new(2, 6), Vector2::new(25, 26)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 33), Vector2::new(2, 6), Vector2::new(38, 39)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(13, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(14, 15), Vector2::new(1, 2), Vector2::new(37, 41)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(18, 19), Vector2::new(2, 6), Vector2::new(24, 25)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(15, 16), Vector2::new(2, 6), Vector2::new(26, 44)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(24, 26), Vector2::new(1, 2), Vector2::new(28, 29)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(20, 23), Vector2::new(2, 6), Vector2::new(37, 39)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(21, 22), Vector2::new(6, 7), Vector2::new(25, 37)), mat_3);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(18, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(30, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(21, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(31, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(21, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(2, 6), Vector2::new(37, 38)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(17, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 19), Vector2::new(6, 7), Vector2::new(24, 25)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(35, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 30), Vector2::new(1, 2), Vector2::new(28, 29)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 20), Vector2::new(6, 7), Vector2::new(37, 40)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(20, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 33), Vector2::new(2, 6), Vector2::new(39, 40)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(22, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 27), Vector2::new(2, 6), Vector2::new(25, 26)), mat_4);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 37), Vector2::new(7, 8), Vector2::new(15, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(2, 6), Vector2::new(29, 30)), mat_5);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(5, 15), Vector2::new(6, 7), Vector2::new(40, 41)), mat_6);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(27, 28), Vector2::new(2, 6), Vector2::new(21, 25)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(19, 20), Vector2::new(2, 6), Vector2::new(39, 40)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 19), Vector2::new(1, 2), Vector2::new(24, 25)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(23, 29), Vector2::new(2, 6), Vector2::new(29, 30)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(32, 33), Vector2::new(1, 2), Vector2::new(39, 43)), mat_7);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 27), Vector2::new(2, 6), Vector2::new(24, 25)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(36, 37), Vector2::new(7, 8), Vector2::new(46, 46)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(7, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(23, 24), Vector2::new(1, 2), Vector2::new(17, 29)), mat_1);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(8, 11), Vector2::new(2, 6), Vector2::new(30, 31)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(17, 37), Vector2::new(0, 1), Vector2::new(46, 46)), mat_0);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(11, 12), Vector2::new(2, 6), Vector2::new(24, 25)), mat_2);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(12, 18), Vector2::new(2, 6), Vector2::new(25, 26)), mat_8);
+	chunk.fill_voxels(thread_pool.clone(), Vector3::new(Vector2::new(26, 37), Vector2::new(6, 7), Vector2::new(19, 20)), mat_1);
+
+	let (voxels, materials) = get_voxels(chunk);
+	save_voxel_data_to_file(voxels.clone(), materials.clone(), NEON_MIRROR_MAZE_NAME);
+	(voxels, materials)
+}
+
+pub fn create_complex_scene(chunk: &mut Chunk, thread_pool: Arc<RwLock<ThreadPoolHelper>>, recreate: bool) -> (Vec<VoxelData>, Vec<Material>) {
+	if does_scene_exist(COMPLEX_SCENE_NAME) && !recreate {
 		let (voxels, materials) = load_voxel_data_from_file(COMPLEX_SCENE_NAME);
 		return (voxels, materials);
 	}

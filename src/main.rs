@@ -10,7 +10,7 @@ use renderer::setup_renderer_and_run;
 use scene_creator::{create_simple_scene, create_complex_scene};
 use voxel::Chunk;
 
-use crate::scene_creator::create_mirror_scene;
+use crate::scene_creator::{create_mirror_scene, create_neon_mirror_maze_scene};
 
 mod renderer;
 mod scene_creator;
@@ -21,11 +21,19 @@ fn main() {
     let mut chunk = Chunk::new(Vector2::new(0, 0), 16);
     let mut current_time = Instant::now();
 
+    let mut recreate = false;
+
+    let args = std::env::args().collect::<Vec<String>>();
+    if args.contains(&String::from("--recreate")) {
+        recreate = true;
+    }
+
     // Just so that it's clear creating the scene does not necessarily mean that the chunk is filled with voxels, it's just a way to get the data.
     // If the scene is already stored in a file, it will be loaded from there.
-    // let (mut voxel_data, materials) = create_simple_scene(&mut chunk, thread_pool);
-    let (mut voxel_data, materials) = create_complex_scene(&mut chunk, thread_pool);
-    // let (mut voxel_data, materials) = create_mirror_scene(&mut chunk, thread_pool);
+    // let (mut voxel_data, materials) = create_simple_scene(&mut chunk, thread_pool, recreate);
+    // let (mut voxel_data, materials) = create_complex_scene(&mut chunk, thread_pool, recreate);
+    // let (mut voxel_data, materials) = create_mirror_scene(&mut chunk, thread_pool, recreate);
+    let (mut voxel_data, materials) = create_neon_mirror_maze_scene(&mut chunk, thread_pool, recreate);
     println!(
         "Time to create scene: {}ms",
         current_time.elapsed().as_millis()
