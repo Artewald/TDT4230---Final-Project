@@ -108,24 +108,36 @@ float get_random_number() {
     return fract(float(rand_num)/float(UINT_MAX));
 }
 
-vec4 get_fog_color(Ray ray, IntersectionInfo intersection_info) {
-    float dist;
-    if (intersection_info.point == vec3(INFINITY_F)) {
-        // Calculates where the ray leaves the atmosphere based on the ray direction and using the atmospheric height and horizon distance
-        float half_pi = 0.5 * 3.14159265359;
-        dist = mix(HORIZON_DISTANCE, ATMOSPHERE_HEIGHT, abs(acos(normalize(ray.direction).y) - HALF_PI))/(HALF_PI);
-    } else {
-        dist = length(intersection_info.point - ray.origin);
-    }
-    float fog_factor = (-1.0*tanh((dist-FOG_FUNC_CONST)/FOG_FUNC_CONST)+1.0)/2.0;
-    return fog_color*fog_factor + vec4(1.0, 1.0, 1.0, 1.0)*(1.0-fog_factor);
+uint[8] get_children_indices(VoxelData voxel) {
+    return uint[8](voxel._0_0_index, voxel._0_1_index, voxel._0_2_index, voxel._0_3_index, voxel._1_0_index, voxel._1_1_index, voxel._1_2_index, voxel._1_3_index);
 }
+
+bool is_leaf_node(VoxelData voxel) {
+    return voxel._0_0_index == uint(-1) && voxel._0_1_index == uint(-1) &&
+           voxel._0_2_index == uint(-1) && voxel._0_3_index == uint(-1) &&
+           voxel._1_0_index == uint(-1) && voxel._1_1_index == uint(-1) &&
+           voxel._1_2_index == uint(-1) && voxel._1_3_index == uint(-1);
+}
+
+int get_pixel_id() {
+    ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 image_size = imageSize(img_out);
+    return IDxy.x+((IDxy.y-1)*image_size.x);
+}
+
+// ==================== Ray functions ====================
 
 vec3 get_random_direction() {
     return normalize(vec3((get_random_number()-0.5)*2, (get_random_number()-0.5)*2, (get_random_number()-0.5)*2));
 }
 
-// ==================== Ray functions ====================
+float get_distance(Ray ray, IntersectionInfo hit_info) {
+    return length(hit_info.point - ray.origin);
+}
+
+bool is_closer(Ray ray, IntersectionInfo hit_info, float closest) {
+    return get_distance(ray, hit_info) < closest;
+}
 
 IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
     const vec3 boxMin = voxel.pos.xyz;
@@ -163,17 +175,6 @@ IntersectionInfo slabs(VoxelData voxel, Ray ray, vec3 invertedRayDirection) {
     return info;
 }
 
-uint[8] get_children_indices(VoxelData voxel) {
-    return uint[8](voxel._0_0_index, voxel._0_1_index, voxel._0_2_index, voxel._0_3_index, voxel._1_0_index, voxel._1_1_index, voxel._1_2_index, voxel._1_3_index);
-}
-
-bool is_leaf_node(VoxelData voxel) {
-    return voxel._0_0_index == uint(-1) && voxel._0_1_index == uint(-1) &&
-           voxel._0_2_index == uint(-1) && voxel._0_3_index == uint(-1) &&
-           voxel._1_0_index == uint(-1) && voxel._1_1_index == uint(-1) &&
-           voxel._1_2_index == uint(-1) && voxel._1_3_index == uint(-1);
-}
-
 Hit fill_hit_color(VoxelData voxel, IntersectionInfo intersection, Ray ray) {
     Hit data;
     data.material = voxel_materials.data[voxel.material_index];
@@ -181,14 +182,6 @@ Hit fill_hit_color(VoxelData voxel, IntersectionInfo intersection, Ray ray) {
     data.point = intersection.point;
     data.normal = intersection.normal;
     return data;
-}
-
-float get_distance(Ray ray, IntersectionInfo hit_info) {
-    return length(hit_info.point - ray.origin);
-}
-
-bool is_closer(Ray ray, IntersectionInfo hit_info, float closest) {
-    return get_distance(ray, hit_info) < closest;
 }
 
 Hit voxel_hit(Ray ray) {
@@ -225,12 +218,6 @@ Ray get_primary_ray(float x_offset, float y_offset) {
     current_search_pos.x = -current_search_pos.x;
 
     return Ray(camera.camera_to_world[3].xyz, normalize(current_search_pos));
-}
-
-int get_pixel_id() {
-    ivec2 IDxy = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 image_size = imageSize(img_out);
-    return IDxy.x+((IDxy.y-1)*image_size.x);
 }
 
 // Main
