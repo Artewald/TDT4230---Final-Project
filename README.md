@@ -14,7 +14,16 @@ The different commands you can run are:
 - `cargo run -- --complex`
 - You can also add `--recreate` to recreate a scene from scratch. Or else the scene is loaded from a binary file for performance reasons. **Use this argument if the scene does not load properly! But it can take multiple minutes to recreate a scene**
 
-**NOTE: The screen will be black until your mouse enters the window or the window is in focus! Some scenes are very dark at the starting location, so please look at the video mentioned previously for a reference on how to get to the part of the scene that shows something.**
+**NOTE: The screen will be black until your mouse enters the window or the window is in focus! Some scenes are very dark at the starting location, so please look at the video mentioned previously for a reference on how to get to the part of the scene that shows something.**<br>
+
+### Camera movement
+
+W = forwards based on viewing direction.<br>
+S = backwards based on viewing direction.<br>
+A = left based on viewing direction.<br>
+D = right based on viewing direction.<br>
+SPACE = up based on world y-axis.<br>
+LEFT CTRL = down based on world y-axis.<br>
 
 ### Problems?
 
