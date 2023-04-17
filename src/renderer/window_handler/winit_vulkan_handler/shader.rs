@@ -78,7 +78,7 @@ struct Ray {
 // ==================== Const variables ====================
 const uint UINT_MAX = -1;
 const float INFINITY_F = 1.0/0.0;
-const uint AMOUNT_OF_RAY_BOUNCES = 3;
+const uint AMOUNT_OF_RAY_BOUNCES = 5;
 
 const VoxelMaterial empty_material = VoxelMaterial(vec4(0.0, 0.0, 0.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0);
 
@@ -439,6 +439,52 @@ void main() {
     // For some reason the for-loop stopped working on my laptop, but worked with hard coded if loops, so I will have to hard code them.       
     
 
+        if (hit.hit && hit.material.emissive_strength <= 0.0) {
+            vec3 diffuse_dir = normalize(hit.normal + get_random_direction());
+            vec3 spec_dir = reflect(ray.direction, hit.normal);
+            is_specular_bounce = hit.material.specular_probability >= get_random_number();
+            vec3 new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness * float(uint(is_specular_bounce)));
+            if (new_dir == vec3(0.0, 0.0, 0.0)) {
+                diffuse_dir = normalize(hit.normal + get_random_direction() + 1);
+                new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness);
+            }
+            ray = Ray(hit.point + hit.normal, new_dir);
+            hit = traverse_and_check_if_intersects(ray);
+            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
+            color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
+        
+            float r = max(color.x, max(color.y, color.z));
+            if (get_random_number() >= r) {
+                hit.hit = false;
+            } 
+            else {
+                color *= 1.0/r;
+            }
+        }
+        
+        if (hit.hit && hit.material.emissive_strength <= 0.0) {
+            vec3 diffuse_dir = normalize(hit.normal + get_random_direction());
+            vec3 spec_dir = reflect(ray.direction, hit.normal);
+            is_specular_bounce = hit.material.specular_probability >= get_random_number();
+            vec3 new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness * float(uint(is_specular_bounce)));
+            if (new_dir == vec3(0.0, 0.0, 0.0)) {
+                diffuse_dir = normalize(hit.normal + get_random_direction() + 1);
+                new_dir = mix(diffuse_dir, spec_dir, hit.material.smoothness);
+            }
+            ray = Ray(hit.point + hit.normal, new_dir);
+            hit = traverse_and_check_if_intersects(ray);
+            light += hit.material.emissive_color * hit.material.emissive_strength * color.rgb;
+            color *= mix(hit.material.color, hit.material.specular_color, uint(is_specular_bounce));
+        
+            float r = max(color.x, max(color.y, color.z));
+            if (get_random_number() >= r) {
+                hit.hit = false;
+            } 
+            else {
+                color *= 1.0/r;
+            }
+        }
+        
         if (hit.hit && hit.material.emissive_strength <= 0.0) {
             vec3 diffuse_dir = normalize(hit.normal + get_random_direction());
             vec3 spec_dir = reflect(ray.direction, hit.normal);
