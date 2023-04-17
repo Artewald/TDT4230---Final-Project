@@ -32,8 +32,8 @@ fn main() {
     // If the scene is already stored in a file, it will be loaded from there.
     // let (mut voxel_data, materials) = create_simple_scene(&mut chunk, thread_pool, recreate);
     // let (mut voxel_data, materials) = create_complex_scene(&mut chunk, thread_pool, recreate);
-    let (mut voxel_data, materials) = create_mirror_scene(&mut chunk, thread_pool, recreate);
-    // let (mut voxel_data, materials) = create_neon_mirror_maze_scene(&mut chunk, thread_pool, recreate);
+    // let (mut voxel_data, materials) = create_mirror_scene(&mut chunk, thread_pool, recreate);
+    let (mut voxel_data, materials) = create_neon_mirror_maze_scene(&mut chunk, thread_pool, recreate);
     println!(
         "Time to create scene: {}ms",
         current_time.elapsed().as_millis()
