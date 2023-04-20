@@ -7,6 +7,7 @@ for (int i_NN = 0; i_NN < level_NN.length(); i_NN++) {
     if (is_leaf_node(temp_voxel)) {
         ret_val = fill_hit_info(temp_voxel, intersection_info, ray);
         closest = get_distance(ray, intersection_info);
+        return ret_val;
         continue;
     }
-    const uint[8] level_MMM = get_children_indices(temp_voxel);
+    const uint[8] level_MMM = sort_child_voxels_by_distance(temp_voxel, ray);//get_children_indices(temp_voxel);
